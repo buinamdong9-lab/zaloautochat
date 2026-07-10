@@ -3,7 +3,7 @@ version: '3.8'
 services:
   zalo-auto-messenger:
     build: .
-    container_name: zalo-auto-messenger
+    container_name: zalo-auto-messenger-v2
     restart: always
     ports:
       - "5200:5200"
