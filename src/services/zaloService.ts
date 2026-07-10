@@ -1,4 +1,4 @@
-import { Zalo, ZaloAPI } from 'zca-js';
+import { Zalo, ZaloAPI, ThreadType } from 'zca-js';
 import { decrypt } from '../utils/crypto';
 import db from '../config/db';
 const { HttpsProxyAgent } = require('https-proxy-agent');
@@ -110,15 +110,16 @@ export class ZaloService {
     message: string
   ): Promise<any> {
     console.log(`Sending message to ${recipientType} '${recipientId}' for user ${userId}...`);
+    const threadType = recipientType === 'GROUP' ? ThreadType.Group : ThreadType.User;
     let api = await this.getClient(userId);
     try {
-      // Send message
-      return await api.sendMessage(message, recipientId);
+      // Send message with correct ThreadType (Group or User)
+      return await api.sendMessage(message, recipientId, threadType);
     } catch (err) {
       console.warn(`Initial send failed for user ${userId}, retrying with fresh client...`);
       try {
         api = await this.getClient(userId, true);
-        return await api.sendMessage(message, recipientId);
+        return await api.sendMessage(message, recipientId, threadType);
       } catch (retryErr) {
         console.error(`Retry send failed for user ${userId}:`, retryErr);
         throw new Error((retryErr as Error).message);
