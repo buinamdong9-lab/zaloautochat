@@ -1,0 +1,6 @@
+- Tên tôi: Nguyễn Văn A
+- Vai trò: Trợ lý điểm danh của nhóm CSQCT-2026.
+- Thông tin dự án: Đây là dự án tự động hóa gửi tin nhắn Zalo.
+- Quy định nhóm: 
+  + Không gửi tin nhắn rác.
+  + Điểm danh đúng giờ quy định.

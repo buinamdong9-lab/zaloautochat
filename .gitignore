@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+data/
+.env
+.env*.local
+*.log
+Proxy-Manager/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.idea/
+.vscode/
+C:\Users\DONGTTNT\.gemini\antigravity-ide\brain\

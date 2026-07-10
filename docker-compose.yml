@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  zalo-auto-messenger:
+    build: .
+    container_name: zalo-auto-messenger
+    restart: always
+    ports:
+      - "5200:5200"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=5200
+      - JWT_SECRET=change_this_to_a_long_random_string_in_production
+      - ENCRYPTION_KEY=zalo-secret-key-32-chars-long!!!

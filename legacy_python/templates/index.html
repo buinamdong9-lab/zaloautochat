@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zalo Auto Messenger</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f1117;
+            --bg-card: #1a1d27;
+            --bg-card-hover: #1f2333;
+            --bg-input: #252836;
+            --border: #2d3148;
+            --text: #e4e6f0;
+            --text-dim: #8b8fa3;
+            --accent: #0068ff;
+            --accent-hover: #0055d4;
+            --accent-glow: rgba(0, 104, 255, 0.15);
+            --success: #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.1);
+            --error: #ef4444;
+            --error-bg: rgba(239, 68, 68, 0.1);
+            --warning: #f59e0b;
+            --warning-bg: rgba(245, 158, 11, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #0068ff 0%, #0044aa 100%);
+            padding: 24px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 24px rgba(0, 104, 255, 0.2);
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header h1 span { font-size: 28px; }
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #888;
+        }
+        .status-dot.active {
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse 2s infinite;
+        }
+        .status-dot.inactive { background: var(--error); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Container */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px 20px;
+        }
+
+        /* Status Cards Row */
+        .status-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .status-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+        .status-card:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent);
+        }
+        .status-card .label {
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+        .status-card .value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .status-card .value.ok { color: var(--success); }
+        .status-card .value.err { color: var(--error); }
+        .status-card .value.warn { color: var(--warning); }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 768px) {
+            .main-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Card */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-body { padding: 20px; }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 4px 16px rgba(0, 104, 255, 0.3); }
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        .btn-success:hover { background: #1aab52; }
+        .btn-danger {
+            background: var(--error);
+            color: white;
+        }
+        .btn-danger:hover { background: #dc3030; }
+        .btn-outline {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .btn-outline:hover { background: var(--bg-input); border-color: var(--accent); }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .btn-block { width: 100%; }
+
+        /* Scheduler Control */
+        .scheduler-control {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 20px;
+        }
+        .scheduler-toggle {
+            position: relative;
+            width: 56px;
+            height: 30px;
+            flex-shrink: 0;
+        }
+        .scheduler-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: #444;
+            border-radius: 30px;
+            transition: 0.3s;
+        }
+        .toggle-slider:before {
+            content: "";
+            position: absolute;
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .scheduler-toggle input:checked + .toggle-slider {
+            background: var(--success);
+            box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+        }
+        .scheduler-toggle input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        .scheduler-info {
+            flex: 1;
+        }
+        .scheduler-info .title {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .scheduler-info .desc {
+            font-size: 13px;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+
+        /* History */
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .history-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 13px;
+        }
+        .history-item:last-child { border-bottom: none; }
+        .history-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+        .history-icon.success { background: var(--success-bg); }
+        .history-icon.error { background: var(--error-bg); }
+        .history-time {
+            color: var(--text-dim);
+            font-size: 12px;
+        }
+        .history-msg { font-weight: 500; }
+        .history-err {
+            color: var(--error);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+        }
+        .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+
+        /* Log viewer */
+        .log-viewer {
+            background: #0d0f14;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.8;
+            max-height: 350px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #9ca3af;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+            max-width: 360px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        }
+        .toast.success { background: var(--success); color: white; }
+        .toast.error { background: var(--error); color: white; }
+        .toast.info { background: var(--accent); color: white; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+
+        /* Full-width card */
+        .full-width { grid-column: 1 / -1; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Credential badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge.ok { background: var(--success-bg); color: var(--success); }
+        .badge.missing { background: var(--error-bg); color: var(--error); }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <h1><span>💬</span> Zalo Auto Messenger</h1>
+    <div class="header-status">
+        <div class="status-dot" id="headerDot"></div>
+        <span id="headerStatus">Đang tải...</span>
+    </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="container">
+
+    <!-- Status Cards -->
+    <div class="status-row">
+        <div class="status-card">
+            <div class="label">Scheduler</div>
+            <div class="value" id="statusScheduler">--</div>
+        </div>
+        <div class="status-card">
+            <div class="label">Lần gửi tiếp theo</div>
+            <div class="value" id="statusNextRun" style="font-size:14px;">--</div>
+        </div>
+        <div class="status-card">
+            <div class="label">Credentials</div>
+            <div class="value" id="statusCreds">--</div>
+        </div>
+        <div class="status-card">
+            <div class="label">Nhóm Chat</div>
+            <div class="value" id="statusGroup">--</div>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="main-grid">
+
+        <!-- Left: Config + Scheduler -->
+        <div style="display:flex; flex-direction:column; gap:24px;">
+
+            <!-- Scheduler Toggle -->
+            <div class="card">
+                <div class="card-header">⏰ Scheduler</div>
+                <div class="scheduler-control">
+                    <label class="scheduler-toggle">
+                        <input type="checkbox" id="schedulerToggle" onchange="toggleScheduler()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="scheduler-info">
+                        <div class="title" id="schedulerTitle">Tắt</div>
+                        <div class="desc" id="schedulerDesc">Bật để gửi tin nhắn tự động theo lịch</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config Form -->
+            <div class="card">
+                <div class="card-header">⚙️ Cấu hình</div>
+                <div class="card-body">
+                    <div class="section-title">🔐 Zalo Credentials</div>
+
+
+
+                    <div class="form-group">
+                        <label>IMEI <span class="badge missing" id="badgeImei">Chưa có</span></label>
+                        <input type="text" id="cfgImei" placeholder="Lấy từ trình duyệt (xem hướng dẫn)">
+                    </div>
+                    <div class="form-group">
+                        <label>zpw_sek <span class="badge missing" id="badgeCookies">Chưa có</span></label>
+                        <input type="text" id="cfgZpwSek" placeholder="Lấy từ Application > Cookies trên chat.zalo.me">
+                    </div>
+                    <div class="form-group">
+                        <label>zpsid</label>
+                        <input type="text" id="cfgZpsid" placeholder="Lấy từ Application > Cookies trên chat.zalo.me">
+                    </div>
+
+                    <div class="section-title" style="margin-top:20px;">💬 Tin nhắn</div>
+
+                    <div class="form-group">
+                        <label>Loại người nhận</label>
+                        <select id="cfgRecipientType">
+                            <option value="GROUP">Nhóm chat</option>
+                            <option value="USER">Cá nhân (Bạn bè)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>ID người nhận (Group ID / User ID)</label>
+                        <input type="text" id="cfgGroupId" placeholder="ID nhóm hoặc ID tài khoản Zalo cá nhân">
+                    </div>
+                    <div class="form-group">
+                        <label>Nội dung tin nhắn</label>
+                        <textarea id="cfgMessage" placeholder="Nhắc nhở điểm danh! 📋"></textarea>
+                    </div>
+
+                    <div class="section-title" style="margin-top:20px;">🕐 Lịch gửi</div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Giờ (0-23)</label>
+                            <input type="number" id="cfgHour" min="0" max="23" value="7">
+                        </div>
+                        <div class="form-group">
+                            <label>Phút (0-59)</label>
+                            <input type="number" id="cfgMinute" min="0" max="59" value="0">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ngày gửi trong tuần</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+                            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
+                                <input type="checkbox" id="dayMon" value="mon" style="width: auto;"> T2
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
+                                <input type="checkbox" id="dayTue" value="tue" style="width: auto;"> T3
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
+                                <input type="checkbox" id="dayWed" value="wed" style="width: auto;"> T4
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
+                                <input type="checkbox" id="dayThu" value="thu" style="width: auto;"> T5
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
+                                <input type="checkbox" id="dayFri" value="fri" style="width: auto;"> T6
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
+                                <input type="checkbox" id="daySat" value="sat" style="width: auto;"> T7
+                            </label>
+                            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: normal; cursor: pointer;">
+                                <input type="checkbox" id="daySun" value="sun" style="width: auto;"> CN
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Từ ngày (Bắt đầu)</label>
+                            <input type="date" id="cfgStartDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Đến ngày (Kết thúc)</label>
+                            <input type="date" id="cfgEndDate">
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary btn-block" onclick="saveConfig()">
+                            💾 Lưu cấu hình
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Actions + History + Logs -->
+        <div style="display:flex; flex-direction:column; gap:24px;">
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">🚀 Thao tác nhanh</div>
+                <div class="card-body">
+                    <button class="btn btn-success btn-block" id="btnTestSend" onclick="testSend()" style="padding:14px;">
+                        📤 Gửi tin nhắn test ngay
+                    </button>
+                </div>
+            </div>
+
+            <!-- History -->
+            <div class="card">
+                <div class="card-header">
+                    📜 Lịch sử gửi tin
+                    <button class="btn btn-outline" onclick="loadHistory()" style="margin-left:auto; padding:4px 12px; font-size:12px;">↻ Refresh</button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div class="empty-state">
+                        <div class="icon">📭</div>
+                        <div>Chưa có lịch sử</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs -->
+            <div class="card">
+                <div class="card-header">
+                    📋 Logs
+                    <button class="btn btn-outline" onclick="loadLogs()" style="margin-left:auto; padding:4px 12px; font-size:12px;">↻ Refresh</button>
+                </div>
+                <div class="card-body" style="padding:12px;">
+                    <div class="log-viewer" id="logViewer">Nhấn Refresh để xem logs...</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// --- Toast ---
+function toast(msg, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+}
+
+// --- API helpers ---
+async function api(url, method = 'GET', body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    return res.json();
+}
+
+// --- Load Status ---
+async function loadStatus() {
+    try {
+        const data = await api('/api/status');
+        const cfg = data.config;
+
+        // Header
+        const dot = document.getElementById('headerDot');
+        const hStatus = document.getElementById('headerStatus');
+        if (data.scheduler_running) {
+            dot.className = 'status-dot active';
+            hStatus.textContent = 'Scheduler đang chạy';
+        } else {
+            dot.className = 'status-dot inactive';
+            hStatus.textContent = 'Scheduler tắt';
+        }
+
+        // Status cards
+        document.getElementById('statusScheduler').textContent = data.scheduler_running ? '🟢 Đang chạy' : '🔴 Tắt';
+        document.getElementById('statusScheduler').className = 'value ' + (data.scheduler_running ? 'ok' : 'err');
+
+        document.getElementById('statusNextRun').textContent = data.next_run || 'N/A';
+
+        document.getElementById('statusCreds').innerHTML = data.credentials_ok
+            ? '<span class="ok">✅ OK</span>'
+            : '<span class="err">❌ Thiếu</span>';
+
+        document.getElementById('statusGroup').innerHTML = data.has_group
+            ? '<span class="ok">✅ Đã set</span>'
+            : '<span class="err">❌ Chưa set</span>';
+
+        // Scheduler toggle
+        document.getElementById('schedulerToggle').checked = data.scheduler_running;
+        document.getElementById('schedulerTitle').textContent = data.scheduler_running ? 'Đang chạy' : 'Tắt';
+        document.getElementById('schedulerDesc').textContent = data.scheduler_running
+            ? `Gửi lúc ${String(cfg.send_hour).padStart(2,'0')}:${String(cfg.send_minute).padStart(2,'0')} mỗi ngày`
+            : 'Bật để gửi tin nhắn tự động theo lịch';
+
+        // Form values
+        document.getElementById('cfgRecipientType').value = cfg.recipient_type || 'GROUP';
+        document.getElementById('cfgGroupId').value = cfg.group_id || '';
+        document.getElementById('cfgMessage').value = cfg.message || '';
+        document.getElementById('cfgHour').value = cfg.send_hour;
+        document.getElementById('cfgMinute').value = cfg.send_minute;
+
+        // Ngày trong tuần
+        const days = (cfg.send_days || "").split(",");
+        document.getElementById('dayMon').checked = days.includes('mon');
+        document.getElementById('dayTue').checked = days.includes('tue');
+        document.getElementById('dayWed').checked = days.includes('wed');
+        document.getElementById('dayThu').checked = days.includes('thu');
+        document.getElementById('dayFri').checked = days.includes('fri');
+        document.getElementById('daySat').checked = days.includes('sat');
+        document.getElementById('daySun').checked = days.includes('sun');
+
+        // Start / End Date
+        document.getElementById('cfgStartDate').value = cfg.start_date || '';
+        document.getElementById('cfgEndDate').value = cfg.end_date || '';
+
+        // Badges
+        const bImei = document.getElementById('badgeImei');
+        bImei.textContent = cfg.imei_set ? '✅ Đã có' : '❌ Chưa có';
+        bImei.className = 'badge ' + (cfg.imei_set ? 'ok' : 'missing');
+
+        const bCookies = document.getElementById('badgeCookies');
+        bCookies.textContent = cfg.cookies_set ? '✅ Đã có' : '❌ Chưa có';
+        bCookies.className = 'badge ' + (cfg.cookies_set ? 'ok' : 'missing');
+
+    } catch (e) {
+        console.error('Load status error:', e);
+    }
+}
+
+// --- Save Config ---
+async function saveConfig() {
+    const days = [];
+    ['dayMon', 'dayTue', 'dayWed', 'dayThu', 'dayFri', 'daySat', 'daySun'].forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb.checked) {
+            days.push(cb.value);
+        }
+    });
+
+    const data = {
+        imei: document.getElementById('cfgImei').value,
+        zpw_sek: document.getElementById('cfgZpwSek').value,
+        zpsid: document.getElementById('cfgZpsid').value,
+        recipient_type: document.getElementById('cfgRecipientType').value,
+        group_id: document.getElementById('cfgGroupId').value,
+        message: document.getElementById('cfgMessage').value,
+        send_hour: document.getElementById('cfgHour').value,
+        send_minute: document.getElementById('cfgMinute').value,
+        send_days: days.join(','),
+        start_date: document.getElementById('cfgStartDate').value,
+        end_date: document.getElementById('cfgEndDate').value,
+    };
+
+    // Chỉ gửi field có giá trị (không ghi đè field rỗng)
+    const filtered = {};
+    for (const [k, v] of Object.entries(data)) {
+        if (v !== '' && v !== null && v !== undefined) {
+            filtered[k] = v;
+        }
+    }
+
+    try {
+        const res = await api('/api/config', 'POST', filtered);
+        if (res.success) {
+            toast('Đã lưu cấu hình!', 'success');
+            loadStatus();
+        } else {
+            toast(res.message, 'error');
+        }
+    } catch (e) {
+        toast('Lỗi: ' + e.message, 'error');
+    }
+}
+
+// --- Test Send ---
+async function testSend() {
+    const btn = document.getElementById('btnTestSend');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang gửi...';
+
+    try {
+        const res = await api('/api/test-send', 'POST');
+        if (res.success) {
+            toast('Đang gửi tin nhắn test...', 'info');
+        } else {
+            toast(res.message, 'error');
+        }
+    } catch (e) {
+        toast('Lỗi: ' + e.message, 'error');
+    }
+
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = '📤 Gửi tin nhắn test ngay';
+        loadHistory();
+    }, 5000);
+}
+
+// --- Scheduler Toggle ---
+async function toggleScheduler() {
+    const isOn = document.getElementById('schedulerToggle').checked;
+    const url = isOn ? '/api/scheduler/start' : '/api/scheduler/stop';
+
+    try {
+        const res = await api(url, 'POST');
+        toast(res.message, res.success ? 'success' : 'error');
+        setTimeout(loadStatus, 500);
+    } catch (e) {
+        toast('Lỗi: ' + e.message, 'error');
+        setTimeout(loadStatus, 500);
+    }
+}
+
+// --- History ---
+async function loadHistory() {
+    try {
+        const res = await api('/api/history');
+        const list = document.getElementById('historyList');
+
+        if (!res.history || res.history.length === 0) {
+            list.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div>Chưa có lịch sử</div></div>';
+            return;
+        }
+
+        list.innerHTML = res.history.map(h => `
+            <div class="history-item">
+                <div class="history-icon ${h.status}">
+                    ${h.status === 'success' ? '✅' : '❌'}
+                </div>
+                <div>
+                    <div class="history-time">${h.time}</div>
+                    <div class="history-msg">${escapeHtml(h.message)}</div>
+                    ${h.error ? `<div class="history-err">${escapeHtml(h.error)}</div>` : ''}
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Load history error:', e);
+    }
+}
+
+// --- Logs ---
+async function loadLogs() {
+    try {
+        const res = await api('/api/logs');
+        document.getElementById('logViewer').textContent = res.logs || 'Không có logs.';
+        // Auto scroll to bottom
+        const viewer = document.getElementById('logViewer');
+        viewer.scrollTop = viewer.scrollHeight;
+    } catch (e) {
+        document.getElementById('logViewer').textContent = 'Lỗi tải logs: ' + e.message;
+    }
+}
+
+// --- Utils ---
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// --- Init ---
+loadStatus();
+loadHistory();
+setInterval(loadStatus, 10000);   // Refresh status mỗi 10s
+setInterval(loadHistory, 30000);  // Refresh history mỗi 30s
+</script>
+
+</body>
+</html>

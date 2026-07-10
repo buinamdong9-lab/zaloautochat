@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zalo Auto Messenger Dashboard</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- FontAwesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="glow-bg"></div>
+  
+  <!-- AUTHENTICATION CARD -->
+  <div id="auth-container" class="auth-wrapper">
+    <div class="auth-card glass">
+      <div class="auth-header">
+        <div class="logo-icon">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <h1>Zalo Auto Messenger</h1>
+        <p id="auth-subtitle">Đăng nhập để quản lý lịch gửi tin tự động</p>
+      </div>
+      
+      <form id="auth-form">
+        <div class="form-group">
+          <label for="username"><i class="fa-solid fa-user"></i> Tên đăng nhập</label>
+          <input type="text" id="username" placeholder="Nhập tên đăng nhập..." required>
+        </div>
+        <div class="form-group">
+          <label for="password"><i class="fa-solid fa-lock"></i> Mật khẩu</label>
+          <input type="password" id="password" placeholder="Nhập mật khẩu..." required>
+        </div>
+        <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-block">
+          <span class="btn-text">Đăng nhập</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </form>
+      
+      <div class="auth-footer">
+        <span id="auth-toggle-text">Chưa có tài khoản?</span>
+        <a href="#" id="auth-toggle-btn">Đăng ký ngay</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD -->
+  <div id="dashboard-container" class="dashboard-wrapper hidden">
+    <!-- SIDEBAR -->
+    <aside class="sidebar glass">
+      <div class="sidebar-header">
+        <div class="logo">
+          <i class="fa-solid fa-paper-plane text-glow"></i>
+          <span>Zalo Auto</span>
+        </div>
+        <div class="user-badge">
+          <span id="current-user-name">Admin</span>
+        </div>
+      </div>
+      
+      <nav class="nav-menu">
+        <a href="#" class="nav-item active" data-tab="overview">
+          <i class="fa-solid fa-chart-simple"></i> Tổng quan
+        </a>
+        <a href="#" class="nav-item" data-tab="config">
+          <i class="fa-solid fa-gears"></i> Cấu hình Zalo
+        </a>
+        <a href="#" class="nav-item" data-tab="schedules">
+          <i class="fa-solid fa-calendar-days"></i> Lịch trình gửi
+        </a>
+        <a href="#" class="nav-item" data-tab="history">
+          <i class="fa-solid fa-clock-rotate-left"></i> Lịch sử gửi tin
+        </a>
+        <a href="#" class="nav-item" data-tab="logs">
+          <i class="fa-solid fa-terminal"></i> Nhật ký hệ thống
+        </a>
+        <a href="#" class="nav-item hidden" id="nav-admin" data-tab="admin">
+          <i class="fa-solid fa-user-shield"></i> Quản trị hệ thống
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <a href="#" id="logout-btn" class="nav-item logout">
+          <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+        </a>
+      </div>
+    </aside>
+
+    <!-- CONTENT AREA -->
+    <main class="content-area">
+      <!-- HEADER -->
+      <header class="content-header glass">
+        <h2 id="tab-title">Tổng quan</h2>
+        <div class="system-status-indicator">
+          <span class="dot pulse green"></span>
+          <span id="connection-status-text">Đang kết nối</span>
+        </div>
+      </header>
+
+      <!-- TAB CONTENTS -->
+      <div class="tab-viewport">
+        
+        <!-- OVERVIEW TAB -->
+        <section id="tab-overview" class="tab-pane active">
+          <div class="metrics-grid">
+            <div class="metric-card glass card-glow-emerald">
+              <div class="metric-icon green-glow">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+              <div class="metric-info">
+                <h3>Trạng thái Zalo</h3>
+                <p id="metric-zalo-status" class="status-badge status-loading">Đang tải...</p>
+              </div>
+            </div>
+            
+            <div class="metric-card glass card-glow-cyan">
+              <div class="metric-icon cyan-glow">
+                <i class="fa-solid fa-clock"></i>
+              </div>
+              <div class="metric-info">
+                <h3>Lịch trình hoạt động</h3>
+                <p id="metric-active-schedules" class="metric-value">0</p>
+              </div>
+            </div>
+
+            <div class="metric-card glass card-glow-purple">
+              <div class="metric-icon purple-glow">
+                <i class="fa-solid fa-microchip"></i>
+              </div>
+              <div class="metric-info">
+                <h3>Crypto Engine</h3>
+                <p id="metric-crypto-mode" class="metric-value small-text">Đang tải...</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="welcome-card glass">
+            <div class="welcome-text">
+              <h2>Chào mừng trở lại, <span class="username-highlight">User</span>!</h2>
+              <p>Hệ thống tự động gửi tin nhắn Zalo đang chạy ngầm trên máy chủ. Bạn có thể thay đổi cấu hình, tạo nhiều lịch gửi tin khác nhau và xem nhật ký chi tiết tại đây.</p>
+            </div>
+            <div class="welcome-actions">
+              <button class="btn btn-primary" onclick="switchTab('config')">
+                <i class="fa-solid fa-key"></i> Thiết lập Zalo
+              </button>
+            </div>
+          </div>
+          
+          <div class="recent-activity-section">
+            <div class="section-title">
+              <h3><i class="fa-solid fa-clock-rotate-left"></i> Hoạt động gần đây</h3>
+              <button class="btn btn-secondary btn-sm" onclick="fetchHistory()">
+                <i class="fa-solid fa-rotate"></i> Làm mới
+              </button>
+            </div>
+            <div class="history-list-compact glass" id="recent-history-container">
+              <p class="placeholder-text">Chưa có lịch sử gửi tin nào.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- CONFIG TAB -->
+        <section id="tab-config" class="tab-pane">
+          <div class="card glass">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <h3><i class="fa-solid fa-key"></i> Tài khoản Zalo & Kết nối API</h3>
+                <span class="card-subtitle">Thiết lập tài khoản Zalo thủ công hoặc đăng nhập tự động bằng mã QR.</span>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openQRLoginModal()">
+                <i class="fa-solid fa-qrcode text-cyan"></i> Đăng nhập bằng QR
+              </button>
+            </div>
+            
+            <form id="zalo-config-form">
+              <div class="form-row">
+                <div class="form-group col-6">
+                  <label for="zalo-imei"><i class="fa-solid fa-fingerprint"></i> Zalo IMEI (UUID)</label>
+                  <input type="text" id="zalo-imei" placeholder="Ví dụ: e5a182b3-d8ea-4861-a083-f38b1d9bf139" required>
+                </div>
+                <div class="form-group col-6">
+                  <label for="zalo-timezone"><i class="fa-solid fa-earth-asia"></i> Timezone (Múi giờ)</label>
+                  <select id="zalo-timezone">
+                    <option value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh (GMT+7)</option>
+                    <option value="Asia/Bangkok">Asia/Bangkok (GMT+7)</option>
+                    <option value="Asia/Singapore">Asia/Singapore (GMT+8)</option>
+                    <option value="UTC">UTC (GMT+0)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label for="zalo-proxy"><i class="fa-solid fa-server"></i> HTTP/HTTPS Proxy (Tùy chọn)</label>
+                <input type="text" id="zalo-proxy" placeholder="Ví dụ: http://user:pass@12.34.56.78:9090 hoặc http://12.34.56.78:9090">
+                <span class="input-help">Định dạng: `http://ip:port` hoặc `http://user:pass@ip:port`. Giúp chạy IP riêng biệt tránh Zalo quét.</span>
+              </div>
+              
+              <div class="form-group">
+                <label for="zalo-cookies"><i class="fa-solid fa-cookie"></i> Zalo Web Cookies String</label>
+                <textarea id="zalo-cookies" rows="4" placeholder="zpw_sek=xxx; zpsid=xxx; __zi=xxx..." required></textarea>
+                <span class="input-help">Mẹo: Nhập định dạng cookie thô (name=value; name2=value2) hoặc dạng JSON.</span>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fa-solid fa-floppy-disk"></i> Lưu cấu hình & Khởi động lại
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="instructions-grid">
+            <div class="card glass instruction-card">
+              <div class="card-header">
+                <h3><i class="fa-solid fa-circle-info text-cyan"></i> Cách lấy thông tin Cookies & IMEI</h3>
+              </div>
+              <div class="card-body">
+                <ol class="steps">
+                  <li>Truy cập trang <a href="https://chat.zalo.me" target="_blank" class="link-glow">chat.zalo.me</a> trên máy tính và đăng nhập tài khoản.</li>
+                  <li>Nhấn **F12** (hoặc click chuột phải chọn Inspect) để mở DevTools, sau đó vào tab **Console**.</li>
+                  <li><strong>Lấy Cookies:</strong> Gõ lệnh `document.cookie` và nhấn Enter. Copy toàn bộ chuỗi kết quả (bỏ dấu ngoặc kép) dán vào ô Cookies ở trên.</li>
+                  <li><strong>Lấy IMEI:</strong> Gõ lệnh:
+                    <pre class="code-block"><code>localStorage.getItem("z_uuid") || localStorage.getItem("ziuid")</code></pre>
+                    Copy chuỗi UUID nhận được dán vào ô IMEI ở trên.
+                  </li>
+                </ol>
+              </div>
+            </div>
+            
+            <div class="card glass utility-card">
+              <div class="card-header">
+                <h3><i class="fa-solid fa-wrench"></i> Thử nghiệm kết nối nhanh</h3>
+              </div>
+              <div class="card-body">
+                <form id="test-send-form">
+                  <div class="form-group">
+                    <label for="test-recipient-type">Loại người nhận</label>
+                    <select id="test-recipient-type">
+                      <option value="GROUP">Nhóm chat (Group)</option>
+                      <option value="USER">Cá nhân (User)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="test-recipient-id">Chọn người nhận</label>
+                    <div style="display: flex; gap: 8px;">
+                      <select id="test-recipient-select" style="flex: 1;"></select>
+                      <input type="text" id="test-recipient-id-manual" class="hidden" placeholder="Nhập ID thủ công...">
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-test-recipient" onclick="toggleTestRecipientMode()" style="padding: 0 12px; white-space: nowrap;">
+                        <i class="fa-solid fa-keyboard"></i> Nhập tay
+                      </button>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="test-message">Nội dung tin nhắn</label>
+                    <input type="text" id="test-message" value="Tin nhắn kiểm tra hệ thống! 🤖" required>
+                  </div>
+                  <button type="submit" id="test-send-btn" class="btn btn-secondary btn-block">
+                    <i class="fa-solid fa-paper-plane"></i> Gửi thử ngay
+                  </button>
+                </form>
+                
+                <div style="margin-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 16px;">
+                  <label style="display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 10px;">
+                    <i class="fa-solid fa-download"></i> Trích xuất danh sách ID Zalo
+                  </label>
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button type="button" class="btn btn-secondary btn-block btn-sm" onclick="downloadFile('/api/zalo/download/groups', 'groups.txt')">
+                      <i class="fa-solid fa-users text-cyan"></i> Tải danh sách Nhóm (groups.txt)
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-block btn-sm" onclick="downloadFile('/api/zalo/download/friends', 'friends.txt')">
+                      <i class="fa-solid fa-user-group text-purple"></i> Tải danh sách Bạn bè (friends.txt)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SCHEDULES TAB -->
+        <section id="tab-schedules" class="tab-pane">
+          <div class="action-header">
+            <h3><i class="fa-solid fa-calendar-days"></i> Quản lý danh sách gửi tin tự động</h3>
+            <button class="btn btn-primary" onclick="openAddScheduleModal()">
+              <i class="fa-solid fa-plus"></i> Tạo lịch mới
+            </button>
+          </div>
+          
+          <div class="schedules-grid" id="schedules-list-container">
+            <p class="placeholder-text">Đang tải danh sách lịch trình...</p>
+          </div>
+        </section>
+
+        <!-- HISTORY TAB -->
+        <section id="tab-history" class="tab-pane">
+          <div class="card glass table-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-clock-rotate-left"></i> Lịch sử gửi tin</h3>
+              <button class="btn btn-secondary btn-sm" onclick="fetchHistory()">
+                <i class="fa-solid fa-rotate"></i> Tải lại lịch sử
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Người nhận</th>
+                    <th>Nội dung</th>
+                    <th>Trạng thái</th>
+                    <th>Chi tiết lỗi</th>
+                  </tr>
+                </thead>
+                <tbody id="history-table-body">
+                  <tr>
+                    <td colspan="5" class="text-center placeholder-text">Đang tải lịch sử gửi tin...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- LOGS TAB -->
+        <section id="tab-logs" class="tab-pane">
+          <div class="card glass log-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-terminal"></i> Console Log</h3>
+              <button class="btn btn-secondary btn-sm" onclick="fetchLogs()">
+                <i class="fa-solid fa-rotate"></i> Làm mới logs
+              </button>
+            </div>
+            <div class="log-viewport" id="log-console">
+              <div class="log-line info">Hệ thống đang sẵn sàng...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ADMIN TAB -->
+        <section id="tab-admin" class="tab-pane">
+          <div class="action-header">
+            <h3><i class="fa-solid fa-users-gear"></i> Quản trị tài khoản người dùng</h3>
+            <button class="btn btn-primary" onclick="openAddUserModal()">
+              <i class="fa-solid fa-user-plus"></i> Tạo tài khoản mới
+            </button>
+          </div>
+          
+          <div class="card glass table-card" style="margin-bottom: 24px;">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Tên đăng nhập</th>
+                    <th>Vai trò</th>
+                    <th>Zalo IMEI</th>
+                    <th>Zalo Cookie</th>
+                    <th>Proxy IP</th>
+                    <th>Múi giờ</th>
+                    <th>Ngày tạo</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-table-body">
+                  <tr>
+                    <td colspan="9" class="text-center placeholder-text">Đang tải danh sách người dùng...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card glass table-card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-calendar-check"></i> Toàn bộ lịch gửi tin trong hệ thống</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Người dùng</th>
+                    <th>Thời gian</th>
+                    <th>Ngày gửi</th>
+                    <th>Gửi đến</th>
+                    <th>Nội dung</th>
+                    <th>Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-schedules-table-body">
+                  <tr>
+                    <td colspan="7" class="text-center placeholder-text">Đang tải danh sách lịch gửi tin...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ADD/EDIT SCHEDULE MODAL -->
+  <div id="schedule-modal" class="modal-wrapper hidden">
+    <div class="modal-content glass">
+      <div class="modal-header">
+        <h3 id="modal-title">Tạo lịch gửi tin mới</h3>
+        <button class="close-btn" onclick="closeScheduleModal()">&times;</button>
+      </div>
+      <form id="schedule-form">
+        <input type="hidden" id="schedule-id">
+        
+        <div class="form-group">
+          <label for="sched-message"><i class="fa-solid fa-comment-dots"></i> Nội dung tin nhắn</label>
+          <textarea id="sched-message" rows="3" placeholder="Nhập nội dung gửi..." required></textarea>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group col-6">
+            <label for="sched-hour"><i class="fa-solid fa-clock"></i> Giờ gửi (Hour)</label>
+            <input type="number" id="sched-hour" min="0" max="23" value="7" required>
+          </div>
+          <div class="form-group col-6">
+            <label for="sched-minute"><i class="fa-solid fa-clock"></i> Phút gửi (Minute)</label>
+            <input type="number" id="sched-minute" min="0" max="59" value="0" required>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label><i class="fa-solid fa-calendar-week"></i> Các ngày trong tuần</label>
+          <div class="days-checkboxes">
+            <label class="checkbox-container">T2 <input type="checkbox" name="sched-days" value="mon" checked><span class="checkmark"></span></label>
+            <label class="checkbox-container">T3 <input type="checkbox" name="sched-days" value="tue" checked><span class="checkmark"></span></label>
+            <label class="checkbox-container">T4 <input type="checkbox" name="sched-days" value="wed" checked><span class="checkmark"></span></label>
+            <label class="checkbox-container">T5 <input type="checkbox" name="sched-days" value="thu" checked><span class="checkmark"></span></label>
+            <label class="checkbox-container">T6 <input type="checkbox" name="sched-days" value="fri" checked><span class="checkmark"></span></label>
+            <label class="checkbox-container">T7 <input type="checkbox" name="sched-days" value="sat"><span class="checkmark"></span></label>
+            <label class="checkbox-container">CN <input type="checkbox" name="sched-days" value="sun"><span class="checkmark"></span></label>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col-6">
+            <label for="sched-recipient-type">Loại người nhận</label>
+            <select id="sched-recipient-type">
+              <option value="GROUP">Nhóm chat (Group)</option>
+              <option value="USER">Cá nhân (User)</option>
+            </select>
+          </div>
+          <div class="form-group col-6">
+            <label for="sched-recipient-id">Chọn người nhận</label>
+            <div style="display: flex; gap: 8px;">
+              <select id="sched-recipient-select" style="flex: 1;"></select>
+              <input type="text" id="sched-recipient-id-manual" class="hidden" placeholder="Nhập ID thủ công...">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-sched-recipient" onclick="toggleSchedRecipientMode()" style="padding: 0 12px; white-space: nowrap;">
+                <i class="fa-solid fa-keyboard"></i> Nhập tay
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col-6">
+            <label for="sched-start-date">Ngày bắt đầu (Tùy chọn)</label>
+            <input type="date" id="sched-start-date">
+          </div>
+          <div class="form-group col-6">
+            <label for="sched-end-date">Ngày kết thúc (Tùy chọn)</label>
+            <input type="date" id="sched-end-date">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeScheduleModal()">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary">Lưu lịch trình</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- QR LOGIN MODAL -->
+  <div id="qr-modal" class="modal-wrapper hidden">
+    <div class="modal-content glass" style="max-width: 420px; text-align: center;">
+      <div class="modal-header">
+        <h3>Đăng nhập Zalo bằng mã QR</h3>
+        <button class="close-btn" onclick="closeQRLoginModal()">&times;</button>
+      </div>
+      <div class="qr-container" style="margin: 20px 0; min-height: 240px; display: flex; justify-content: center; align-items: center; background: rgba(0,0,0,0.15); border-radius: 10px; border: 1px dashed rgba(255,255,255,0.1); position: relative;">
+        <div id="qr-loading" class="placeholder-text">
+          <i class="fa-solid fa-spinner fa-spin fa-2x" style="margin-bottom: 10px; display: block; color: var(--cyan);"></i>
+          Đang khởi tạo mã QR...
+        </div>
+        <img id="qr-image" src="" alt="Zalo QR Code" class="hidden" style="width: 220px; height: 220px; border-radius: 8px; border: 4px solid #fff; box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);">
+        <div id="qr-overlay" class="hidden" style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(15, 23, 42, 0.95); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;">
+          <div id="qr-overlay-content"></div>
+        </div>
+      </div>
+      <div class="qr-instructions" style="font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;">
+        <p id="qr-status-desc">Mở ứng dụng Zalo trên điện thoại và thực hiện quét mã QR này để đăng nhập tự động.</p>
+      </div>
+      <div class="modal-footer" style="justify-content: center; border-top: none; margin-top: 0; padding-top: 0;">
+        <button type="button" class="btn btn-secondary" onclick="closeQRLoginModal()">Hủy bỏ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- USER MODAL (ADMIN ONLY) -->
+  <div id="user-modal" class="modal-wrapper hidden">
+    <div class="modal-content glass" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 id="user-modal-title">Tạo tài khoản người dùng</h3>
+        <button class="close-btn" onclick="closeUserModal()">&times;</button>
+      </div>
+      <form id="user-form">
+        <input type="hidden" id="admin-user-id">
+        <div class="form-group">
+          <label for="admin-username"><i class="fa-solid fa-user"></i> Tên đăng nhập</label>
+          <input type="text" id="admin-username" placeholder="Nhập tên tài khoản..." required>
+        </div>
+        <div class="form-group">
+          <label for="admin-password"><i class="fa-solid fa-lock"></i> Mật khẩu</label>
+          <input type="password" id="admin-password" placeholder="Nhập mật khẩu...">
+          <span class="input-help" id="admin-password-help">Để trống nếu không muốn thay đổi.</span>
+        </div>
+        <div class="form-group">
+          <label for="admin-user-timezone"><i class="fa-solid fa-earth-asia"></i> Múi giờ</label>
+          <select id="admin-user-timezone">
+            <option value="Asia/Ho_Chi_Minh">Asia/Ho_Chi_Minh (GMT+7)</option>
+            <option value="Asia/Bangkok">Asia/Bangkok (GMT+7)</option>
+            <option value="Asia/Singapore">Asia/Singapore (GMT+8)</option>
+            <option value="UTC">UTC (GMT+0)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="admin-user-proxy"><i class="fa-solid fa-server"></i> HTTP/HTTPS Proxy (Tùy chọn)</label>
+          <input type="text" id="admin-user-proxy" placeholder="Ví dụ: http://12.34.56.78:9090">
+          <span class="input-help">Định dạng: `http://ip:port` hoặc `http://user:pass@ip:port`</span>
+        </div>
+        <div class="form-group">
+          <label class="checkbox-container">
+            Quyền Quản trị viên (Admin)
+            <input type="checkbox" id="admin-is-admin">
+            <span class="checkmark"></span>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary">Lưu người dùng</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  
+  <script src="app.js"></script>
+</body>
+</html>
