@@ -9,6 +9,9 @@ RUN apk add --no-cache python3 make g++ gcc libc-dev
 COPY package*.json ./
 COPY binding.gyp ./
 
+# Copy C/C++ native source file for node-gyp compilation
+COPY src/native/ ./src/native/
+
 # Install dependencies (including devDependencies for TypeScript compilation)
 RUN npm ci
 
