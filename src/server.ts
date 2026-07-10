@@ -664,8 +664,40 @@ app.post('/api/admin/proxies/import', authenticateToken, requireAdmin, (req: Aut
 
 app.get('/api/admin/proxies', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
   try {
-    const proxies = db.prepare('SELECT * FROM proxies ORDER BY id DESC').all();
-    return res.json({ success: true, proxies });
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const search = (req.query.search as string) || '';
+
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (search.trim()) {
+      conditions.push('url LIKE ?');
+      params.push(`%${search.trim()}%`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Query total count
+    const countQuery = `SELECT COUNT(*) as total FROM proxies ${whereClause}`;
+    const totalResult = db.prepare(countQuery).get(...params) as { total: number };
+    const total = totalResult ? totalResult.total : 0;
+
+    // Query paginated data
+    const offset = (page - 1) * limit;
+    const dataQuery = `SELECT * FROM proxies ${whereClause} ORDER BY id DESC LIMIT ? OFFSET ?`;
+    const proxies = db.prepare(dataQuery).all(...params, limit, offset);
+
+    return res.json({
+      success: true,
+      proxies,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (err) {
     return res.status(500).json({ success: false, message: (err as Error).message });
   }

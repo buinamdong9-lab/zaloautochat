@@ -34,6 +34,10 @@ let schedulesData = [];
 let qrPollInterval = null;
 let adminUsersData = [];
 let adminProxiesData = [];
+let adminProxiesPage = 1;
+let adminProxiesLimit = 50;
+let adminProxiesSearch = '';
+let adminProxiesTotalPages = 1;
 
 // Zalo Contacts for Dropdown Select
 let zaloGroups = [];
@@ -1168,15 +1172,20 @@ function toggleSchedRecipientMode() {
 
 // --- ADMIN PROXY POOL LOGIC ---
 
+// --- ADMIN PROXY POOL LOGIC ---
+
 async function fetchAdminProxies() {
   try {
-    const res = await fetch('/api/admin/proxies', {
+    const res = await fetch(`/api/admin/proxies?page=${adminProxiesPage}&limit=${adminProxiesLimit}&search=${encodeURIComponent(adminProxiesSearch)}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
     if (data.success) {
       adminProxiesData = data.proxies;
+      adminProxiesTotalPages = data.pagination.totalPages;
+      adminProxiesPage = data.pagination.page;
       renderAdminProxies();
+      renderAdminProxiesPagination(data.pagination);
     }
   } catch (err) {
     showToast('Lỗi tải danh sách proxy!', 'error');
@@ -1206,6 +1215,43 @@ function renderAdminProxies() {
       </td>
     </tr>
   `).join('');
+}
+
+function renderAdminProxiesPagination(pagination) {
+  const info = document.getElementById('proxies-pagination-info');
+  const btnPrev = document.getElementById('btn-proxies-prev');
+  const btnNext = document.getElementById('btn-proxies-next');
+  const container = document.getElementById('admin-proxies-pagination');
+  if (!info || !btnPrev || !btnNext || !container) return;
+
+  if (pagination.total === 0) {
+    container.classList.add('hidden');
+    return;
+  }
+  container.classList.remove('hidden');
+
+  info.textContent = `Trang ${pagination.page} / ${pagination.totalPages || 1} (Tổng số ${pagination.total} proxy)`;
+  
+  btnPrev.disabled = pagination.page <= 1;
+  btnNext.disabled = pagination.page >= pagination.totalPages;
+}
+
+function changeProxiesPage(direction) {
+  const targetPage = adminProxiesPage + direction;
+  if (targetPage >= 1 && targetPage <= adminProxiesTotalPages) {
+    adminProxiesPage = targetPage;
+    fetchAdminProxies();
+  }
+}
+
+let proxiesSearchTimeout = null;
+function handleProxiesSearch(event) {
+  if (proxiesSearchTimeout) clearTimeout(proxiesSearchTimeout);
+  proxiesSearchTimeout = setTimeout(() => {
+    adminProxiesSearch = event.target.value;
+    adminProxiesPage = 1; // Reset to page 1 on new search
+    fetchAdminProxies();
+  }, 400);
 }
 
 function openAddProxyModal() {
@@ -1279,7 +1325,7 @@ async function deleteProxy(id) {
   }
 }
 
-function populateUserProxySelect(currentVal = '') {
+async function populateUserProxySelect(currentVal = '') {
   const select = document.getElementById('admin-user-proxy-select');
   const customContainer = document.getElementById('admin-user-proxy-custom-container');
   const customInput = document.getElementById('admin-user-proxy');
@@ -1291,14 +1337,25 @@ function populateUserProxySelect(currentVal = '') {
     <option value="custom">-- Nhập thủ công... --</option>
   `;
 
-  adminProxiesData.forEach(p => {
-    if (p.is_active === 1 || p.url === currentVal) {
-      const option = document.createElement('option');
-      option.value = p.url;
-      option.textContent = p.url;
-      select.appendChild(option);
+  try {
+    // Fetch active proxies specifically for this user selection dropdown
+    const res = await fetch('/api/admin/proxies?page=1&limit=10000', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      data.proxies.forEach(p => {
+        if (p.is_active === 1 || p.url === currentVal) {
+          const option = document.createElement('option');
+          option.value = p.url;
+          option.textContent = p.url;
+          select.appendChild(option);
+        }
+      });
     }
-  });
+  } catch (err) {
+    console.error('Failed to fetch proxies for user dropdown:', err);
+  }
 
   if (!currentVal) {
     select.value = '';

@@ -403,18 +403,22 @@
               </table>
           </div>
 
-          <div class="action-header" style="margin-top: 32px;">
+          <div class="action-header" style="margin-top: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <h3><i class="fa-solid fa-server"></i> Quản lý Proxy Pool</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <!-- Proxy Search Box -->
+              <div style="margin-bottom: 0; position: relative;">
+                <input type="text" id="admin-proxies-search-input" placeholder="Tìm kiếm proxy..." oninput="handleProxiesSearch(event)" style="padding: 6px 12px; font-size: 13px; border: var(--border-width) solid var(--panel-border); border-radius: 8px; height: 38px; width: 200px; font-family: inherit; font-weight: 700; box-shadow: var(--input-shadow);">
+              </div>
               <input type="file" id="proxy-file-input" accept=".json" style="display: none;" onchange="importProxiesFromFile(event)">
-              <button class="btn btn-secondary" onclick="document.getElementById('proxy-file-input').click()">
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('proxy-file-input').click()" style="height: 38px;">
                 <i class="fa-solid fa-file-import"></i> Nhập từ JSON
               </button>
-              <button class="btn btn-secondary" id="btn-scan-proxies" onclick="triggerProxyScan()">
-                <i class="fa-solid fa-arrows-spin"></i> Quét nhanh Proxy
+              <button class="btn btn-secondary btn-sm" id="btn-scan-proxies" onclick="triggerProxyScan()" style="height: 38px;">
+                <i class="fa-solid fa-arrows-spin"></i> Quét nhanh
               </button>
-              <button class="btn btn-primary" onclick="openAddProxyModal()">
-                <i class="fa-solid fa-plus"></i> Thêm proxy mới
+              <button class="btn btn-primary btn-sm" onclick="openAddProxyModal()" style="height: 38px;">
+                <i class="fa-solid fa-plus"></i> Thêm mới
               </button>
             </div>
           </div>
@@ -437,6 +441,20 @@
                   </tr>
                 </tbody>
               </table>
+            </div>
+            <!-- PROXY PAGINATION -->
+            <div class="pagination-container" id="admin-proxies-pagination" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; border-top: var(--border-width) solid var(--panel-border); border-radius: 0; background: var(--bg-color); flex-wrap: wrap; gap: 10px;">
+              <div class="pagination-info" style="font-size: 13px; font-weight: 700;" id="proxies-pagination-info">
+                Trang 1 / 1 (Tổng số 0 proxy)
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary btn-sm" id="btn-proxies-prev" onclick="changeProxiesPage(-1)">
+                  <i class="fa-solid fa-chevron-left"></i> Trước
+                </button>
+                <button class="btn btn-secondary btn-sm" id="btn-proxies-next" onclick="changeProxiesPage(1)">
+                  Sau <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
             </div>
           </div>
 
