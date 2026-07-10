@@ -76,7 +76,46 @@ db.exec(`
     message TEXT NOT NULL,
     FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS proxies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    url TEXT UNIQUE NOT NULL,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
+
+// Seed initial proxies if table is empty
+try {
+  const countResult = db.prepare('SELECT COUNT(*) as count FROM proxies').get() as any;
+  if (countResult && countResult.count === 0) {
+    const insert = db.prepare('INSERT OR IGNORE INTO proxies (url, is_active) VALUES (?, 1)');
+    const initialProxies = [
+      "http://113.176.100.249:8881",
+      "socks4://118.71.44.153:1083",
+      "socks5://118.71.44.153:1083",
+      "socks5://103.249.117.187:1080",
+      "http://113.160.132.26:8080",
+      "http://163.181.207.171:9999",
+      "socks4://117.7.81.125:1111",
+      "socks4://116.97.117.27:4153",
+      "socks5://118.70.67.11:1080",
+      "socks5://160.250.54.6:9000",
+      "http://137.59.47.73:3128",
+      "socks4://1.53.106.137:5000",
+      "socks5://160.250.54.9:9000",
+      "socks5://160.250.54.7:9000",
+      "socks5://45.118.146.219:1080",
+      "http://14.225.240.23:8562"
+    ];
+    for (const p of initialProxies) {
+      insert.run(p);
+    }
+    console.log('Seeded initial working proxies to database.');
+  }
+} catch (err) {
+  console.error('Error seeding proxies table:', err);
+}
 
 console.log('📂 Database initialized successfully at:', dbPath);
 

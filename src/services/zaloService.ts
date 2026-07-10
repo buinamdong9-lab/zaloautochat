@@ -2,6 +2,7 @@ import { Zalo, ZaloAPI, ThreadType } from 'zca-js';
 import { decrypt } from '../utils/crypto';
 import db from '../config/db';
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 
 export class ZaloService {
   private static clients: Map<number, ZaloAPI> = new Map();
@@ -78,8 +79,13 @@ export class ZaloService {
     const config: any = {};
     if (user.proxy) {
       try {
-        console.log(`Setting up HTTPS Proxy for user ${userId} (${user.username}): ${user.proxy}`);
-        config.agent = new HttpsProxyAgent(user.proxy);
+        const proxyUrl = user.proxy.trim();
+        console.log(`Setting up Proxy for user ${userId} (${user.username}): ${proxyUrl}`);
+        if (proxyUrl.startsWith('socks4://') || proxyUrl.startsWith('socks5://') || proxyUrl.startsWith('socks://')) {
+          config.agent = new SocksProxyAgent(proxyUrl);
+        } else {
+          config.agent = new HttpsProxyAgent(proxyUrl);
+        }
       } catch (proxyErr) {
         console.error(`Invalid proxy URL format for user ${userId}:`, proxyErr);
       }
@@ -122,6 +128,29 @@ export class ZaloService {
         return await api.sendMessage(message, recipientId, threadType);
       } catch (retryErr) {
         console.error(`Retry send failed for user ${userId}:`, retryErr);
+        const errMsg = (retryErr as Error).message || '';
+        const isProxyError = errMsg.includes('ECONNRESET') || 
+                             errMsg.includes('ETIMEDOUT') || 
+                             errMsg.includes('ECONNREFUSED') || 
+                             errMsg.includes('proxy') || 
+                             errMsg.includes('tunneling socket') || 
+                             errMsg.includes('socks');
+        
+        if (isProxyError) {
+          console.warn(`[Failover] Proxy error detected: "${errMsg}". Attempting auto-failover...`);
+          const failoverSuccess = await this.handleProxyFailover(userId);
+          if (failoverSuccess) {
+            try {
+              console.log(`[Failover] Retrying send message with new proxy...`);
+              api = await this.getClient(userId, true);
+              return await api.sendMessage(message, recipientId, threadType);
+            } catch (failoverSendErr) {
+              console.error(`[Failover] Send message failed after proxy failover:`, failoverSendErr);
+              throw new Error((failoverSendErr as Error).message);
+            }
+          }
+        }
+        
         throw new Error((retryErr as Error).message);
       }
     }
@@ -202,5 +231,41 @@ export class ZaloService {
    */
   public static logout(userId: number): void {
     this.clients.delete(userId);
+  }
+
+  /**
+   * Attempt auto-failover to another active proxy in the pool when user's proxy fails
+   */
+  private static async handleProxyFailover(userId: number): Promise<boolean> {
+    try {
+      // Get the user's current failed proxy
+      const user = db.prepare('SELECT username, proxy FROM users WHERE id = ?').get(userId) as any;
+      if (!user) return false;
+      
+      const failedProxy = user.proxy;
+      if (failedProxy) {
+        console.log(`[Failover] User ${user.username} (ID ${userId}) proxy failed: ${failedProxy}. Marking proxy as inactive in pool.`);
+        // Mark the failed proxy as inactive in the pool
+        db.prepare('UPDATE proxies SET is_active = 0 WHERE url = ?').run(failedProxy);
+      }
+      
+      // Get a random active proxy from the pool
+      const newProxyRow = db.prepare('SELECT url FROM proxies WHERE is_active = 1 ORDER BY RANDOM() LIMIT 1').get() as any;
+      if (newProxyRow && newProxyRow.url) {
+        const newProxy = newProxyRow.url;
+        console.log(`[Failover] Found new active proxy in pool: ${newProxy}. Assigning to user ${user.username}.`);
+        // Assign new proxy to user
+        db.prepare('UPDATE users SET proxy = ? WHERE id = ?').run(newProxy, userId);
+        // Reset client cache
+        this.logout(userId);
+        return true;
+      } else {
+        console.warn(`[Failover] No active proxies available in the pool for user ${user.username}.`);
+        return false;
+      }
+    } catch (err) {
+      console.error('[Failover] Error handling proxy failover:', err);
+      return false;
+    }
   }
 }

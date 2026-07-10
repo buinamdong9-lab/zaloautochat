@@ -5,6 +5,7 @@ let statusPollInterval = null;
 let schedulesData = [];
 let qrPollInterval = null;
 let adminUsersData = [];
+let adminProxiesData = [];
 
 // Zalo Contacts for Dropdown Select
 let zaloGroups = [];
@@ -37,6 +38,12 @@ document.addEventListener('DOMContentLoaded', () => {
     userForm.addEventListener('submit', handleUserSubmit);
   }
 
+  // Proxy Form Submit (Admin only)
+  const proxyForm = document.getElementById('proxy-form');
+  if (proxyForm) {
+    proxyForm.addEventListener('submit', handleProxySubmit);
+  }
+
   // Tab navigation
   document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -54,6 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if (schedRecipType) {
     schedRecipType.addEventListener('change', updateRecipientDropdowns);
   }
+
+  // Initialize Searchable Dropdowns
+  initializeSearchableSelect('sched-recipient-select', 'Gõ để tìm nhóm/bạn bè...');
+  initializeSearchableSelect('test-recipient-select', 'Gõ để tìm nhóm/bạn bè...');
+  initializeSearchableSelect('admin-user-proxy-select', 'Gõ để tìm proxy...');
 
   // Logout click
   document.getElementById('logout-btn').addEventListener('click', (e) => {
@@ -234,6 +246,7 @@ function switchTab(tabId) {
   } else if (tabId === 'admin') {
     fetchAdminUsers();
     fetchAdminSchedules();
+    fetchAdminProxies();
   }
   
   // Reload contacts on relevant tabs
@@ -491,7 +504,9 @@ function openAddScheduleModal() {
   const select = document.getElementById('sched-recipient-select');
   const manual = document.getElementById('sched-recipient-id-manual');
   const btn = document.getElementById('btn-toggle-sched-recipient');
+  const wrapper = document.getElementById('sched-recipient-select-searchable-wrapper');
   select.classList.remove('hidden');
+  if (wrapper) wrapper.classList.remove('hidden');
   manual.classList.add('hidden');
   manual.value = '';
   btn.innerHTML = '<i class="fa-solid fa-keyboard"></i> Nhập tay';
@@ -527,6 +542,7 @@ function openEditScheduleModal(id) {
   const select = document.getElementById('sched-recipient-select');
   const manual = document.getElementById('sched-recipient-id-manual');
   const btn = document.getElementById('btn-toggle-sched-recipient');
+  const wrapper = document.getElementById('sched-recipient-select-searchable-wrapper');
   
   // Find option in select
   let found = false;
@@ -541,12 +557,14 @@ function openEditScheduleModal(id) {
   if (found) {
     schedRecipientManualMode = false;
     select.classList.remove('hidden');
+    if (wrapper) wrapper.classList.remove('hidden');
     manual.classList.add('hidden');
     manual.value = '';
     btn.innerHTML = '<i class="fa-solid fa-keyboard"></i> Nhập tay';
   } else {
     schedRecipientManualMode = true;
     select.classList.add('hidden');
+    if (wrapper) wrapper.classList.add('hidden');
     manual.classList.remove('hidden');
     manual.value = s.recipient_id;
     btn.innerHTML = '<i class="fa-solid fa-list"></i> Chọn sẵn';
@@ -925,7 +943,7 @@ function openAddUserModal() {
   document.getElementById('admin-password').required = true;
   document.getElementById('admin-password-help').classList.add('hidden');
   document.getElementById('admin-user-timezone').value = 'Asia/Ho_Chi_Minh';
-  document.getElementById('admin-user-proxy').value = '';
+  populateUserProxySelect('');
   document.getElementById('admin-is-admin').checked = false;
   document.getElementById('user-modal').classList.remove('hidden');
 }
@@ -942,7 +960,7 @@ function openEditUserModal(id) {
   document.getElementById('admin-password').required = false;
   document.getElementById('admin-password-help').classList.remove('hidden');
   document.getElementById('admin-user-timezone').value = u.timezone || 'Asia/Ho_Chi_Minh';
-  document.getElementById('admin-user-proxy').value = u.proxy || '';
+  populateUserProxySelect(u.proxy || '');
   document.getElementById('admin-is-admin').checked = u.is_admin === 1;
   document.getElementById('user-modal').classList.remove('hidden');
 }
@@ -1066,11 +1084,15 @@ function populateSelectWithOptions(selectEl, list, type) {
   if (!selectEl) return;
   if (list.length === 0) {
     selectEl.innerHTML = `<option value="">-- Không có danh sách ${type === 'GROUP' ? 'Nhóm' : 'Bạn bè'} (Vui lòng thiết lập Zalo) --</option>`;
-    return;
+  } else {
+    selectEl.innerHTML = list.map(item => `
+      <option value="${item.id}">${escapeHtml(item.name)}</option>
+    `).join('');
   }
-  selectEl.innerHTML = list.map(item => `
-    <option value="${item.id}">${escapeHtml(item.name)}</option>
-  `).join('');
+
+  if (selectEl.dataset.searchableInitialized === 'true') {
+    syncSearchableSelect(selectEl.id);
+  }
 }
 
 function toggleTestRecipientMode() {
@@ -1078,14 +1100,20 @@ function toggleTestRecipientMode() {
   const select = document.getElementById('test-recipient-select');
   const manual = document.getElementById('test-recipient-id-manual');
   const btn = document.getElementById('btn-toggle-test-recipient');
+  const wrapper = document.getElementById('test-recipient-select-searchable-wrapper');
 
   if (testRecipientManualMode) {
     select.classList.add('hidden');
+    if (wrapper) wrapper.classList.add('hidden');
     manual.classList.remove('hidden');
     btn.innerHTML = '<i class="fa-solid fa-list"></i> Chọn sẵn';
     manual.required = true;
   } else {
-    select.classList.remove('hidden');
+    if (wrapper) {
+      wrapper.classList.remove('hidden');
+    } else {
+      select.classList.remove('hidden');
+    }
     manual.classList.add('hidden');
     btn.innerHTML = '<i class="fa-solid fa-keyboard"></i> Nhập tay';
     manual.required = false;
@@ -1097,16 +1125,432 @@ function toggleSchedRecipientMode() {
   const select = document.getElementById('sched-recipient-select');
   const manual = document.getElementById('sched-recipient-id-manual');
   const btn = document.getElementById('btn-toggle-sched-recipient');
+  const wrapper = document.getElementById('sched-recipient-select-searchable-wrapper');
 
   if (schedRecipientManualMode) {
     select.classList.add('hidden');
+    if (wrapper) wrapper.classList.add('hidden');
     manual.classList.remove('hidden');
     btn.innerHTML = '<i class="fa-solid fa-list"></i> Chọn sẵn';
     manual.required = true;
   } else {
-    select.classList.remove('hidden');
+    if (wrapper) {
+      wrapper.classList.remove('hidden');
+    } else {
+      select.classList.remove('hidden');
+    }
     manual.classList.add('hidden');
     btn.innerHTML = '<i class="fa-solid fa-keyboard"></i> Nhập tay';
     manual.required = false;
+  }
+}
+
+// --- ADMIN PROXY POOL LOGIC ---
+
+async function fetchAdminProxies() {
+  try {
+    const res = await fetch('/api/admin/proxies', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      adminProxiesData = data.proxies;
+      renderAdminProxies();
+    }
+  } catch (err) {
+    showToast('Lỗi tải danh sách proxy!', 'error');
+  }
+}
+
+function renderAdminProxies() {
+  const tbody = document.getElementById('admin-proxies-table-body');
+  if (!tbody) return;
+  
+  if (adminProxiesData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center placeholder-text">Không có proxy nào trong pool.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = adminProxiesData.map(p => `
+    <tr>
+      <td>${p.id}</td>
+      <td><code>${escapeHtml(p.url)}</code></td>
+      <td><span class="status-badge ${p.is_active === 1 ? 'status-success' : 'status-error'}">${p.is_active === 1 ? 'Hoạt động' : 'Tắt'}</span></td>
+      <td>${new Date(p.created_at).toLocaleDateString('vi-VN')}</td>
+      <td>
+        <div class="schedule-btns">
+          <button class="btn btn-secondary btn-sm" onclick="openEditProxyModal(${p.id})"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteProxy(${p.id})"><i class="fa-solid fa-trash-can"></i> Xóa</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openAddProxyModal() {
+  document.getElementById('proxy-modal-title').textContent = 'Thêm proxy mới vào pool';
+  document.getElementById('admin-proxy-id').value = '';
+  document.getElementById('admin-proxy-url').value = '';
+  document.getElementById('admin-proxy-active').checked = true;
+  document.getElementById('proxy-modal').classList.remove('hidden');
+}
+
+function openEditProxyModal(id) {
+  const p = adminProxiesData.find(item => item.id === id);
+  if (!p) return;
+
+  document.getElementById('proxy-modal-title').textContent = 'Chỉnh sửa proxy';
+  document.getElementById('admin-proxy-id').value = p.id;
+  document.getElementById('admin-proxy-url').value = p.url;
+  document.getElementById('admin-proxy-active').checked = p.is_active === 1;
+  document.getElementById('proxy-modal').classList.remove('hidden');
+}
+
+function closeProxyModal() {
+  document.getElementById('proxy-modal').classList.add('hidden');
+}
+
+async function handleProxySubmit(e) {
+  e.preventDefault();
+  const id = document.getElementById('admin-proxy-id').value;
+  const url = document.getElementById('admin-proxy-url').value.trim();
+  const is_active = document.getElementById('admin-proxy-active').checked ? 1 : 0;
+
+  const payload = { url, is_active };
+  const method = id ? 'PUT' : 'POST';
+  const endpoint = id ? `/api/admin/proxies/${id}` : '/api/admin/proxies';
+
+  try {
+    const res = await fetch(endpoint, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Lỗi lưu proxy');
+
+    showToast('Đã lưu thông tin proxy!');
+    closeProxyModal();
+    fetchAdminProxies();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteProxy(id) {
+  if (!confirm('Bạn có chắc chắn muốn xóa proxy này khỏi pool?')) return;
+
+  try {
+    const res = await fetch(`/api/admin/proxies/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+
+    showToast('Đã xóa proxy thành công!');
+    fetchAdminProxies();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function populateUserProxySelect(currentVal = '') {
+  const select = document.getElementById('admin-user-proxy-select');
+  const customContainer = document.getElementById('admin-user-proxy-custom-container');
+  const customInput = document.getElementById('admin-user-proxy');
+  
+  if (!select) return;
+
+  select.innerHTML = `
+    <option value="">Không sử dụng proxy</option>
+    <option value="custom">-- Nhập thủ công... --</option>
+  `;
+
+  adminProxiesData.forEach(p => {
+    if (p.is_active === 1 || p.url === currentVal) {
+      const option = document.createElement('option');
+      option.value = p.url;
+      option.textContent = p.url;
+      select.appendChild(option);
+    }
+  });
+
+  if (!currentVal) {
+    select.value = '';
+    customContainer.classList.add('hidden');
+    customInput.value = '';
+  } else {
+    const exists = Array.from(select.options).some(opt => opt.value === currentVal);
+    if (exists) {
+      select.value = currentVal;
+      customContainer.classList.add('hidden');
+      customInput.value = currentVal;
+    } else {
+      select.value = 'custom';
+      customContainer.classList.remove('hidden');
+      customInput.value = currentVal;
+    }
+  }
+
+  if (select.dataset.searchableInitialized === 'true') {
+    syncSearchableSelect('admin-user-proxy-select');
+  }
+}
+
+function handleUserProxySelectChange() {
+  const select = document.getElementById('admin-user-proxy-select');
+  const customContainer = document.getElementById('admin-user-proxy-custom-container');
+  const customInput = document.getElementById('admin-user-proxy');
+  
+  if (!select) return;
+
+  if (select.value === 'custom') {
+    customContainer.classList.remove('hidden');
+    customInput.value = '';
+    customInput.focus();
+  } else {
+    customContainer.classList.add('hidden');
+    customInput.value = select.value;
+  }
+}
+
+async function triggerProxyScan() {
+  const btn = document.getElementById('btn-scan-proxies');
+  if (!btn) return;
+  
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang quét...';
+  showToast('Đang bắt đầu quét toàn bộ proxy hoạt động trong pool...');
+
+  try {
+    const res = await fetch('/api/admin/proxies/scan', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Lỗi quét proxy');
+
+    showToast(data.message);
+    fetchAdminProxies();
+    fetchAdminUsers();
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+}
+
+function importProxiesFromFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const json = JSON.parse(e.target.result);
+      let proxies = [];
+      
+      if (Array.isArray(json)) {
+        proxies = json.map(item => {
+          if (typeof item === 'string') return item.trim();
+          if (item && typeof item === 'object') return (item.url || item.proxy || '').trim();
+          return null;
+        }).filter(Boolean);
+      } else if (json && typeof json === 'object') {
+        const possibleArray = json.proxies || json.list || [];
+        if (Array.isArray(possibleArray)) {
+          proxies = possibleArray.map(item => {
+            if (typeof item === 'string') return item.trim();
+            if (item && typeof item === 'object') return (item.url || item.proxy || '').trim();
+            return null;
+          }).filter(Boolean);
+        }
+      }
+
+      if (proxies.length === 0) {
+        throw new Error('File JSON không chứa danh sách proxy hợp lệ (Dạng mảng string hoặc mảng object có thuộc tính "url" hoặc "proxy")');
+      }
+
+      showToast(`Đang tải lên và xử lý ${proxies.length} proxy...`);
+
+      const res = await fetch('/api/admin/proxies/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ proxies })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi nhập proxy');
+
+      showToast(data.message);
+      fetchAdminProxies();
+    } catch (err) {
+      showToast(`Lỗi đọc file: ${err.message}`, 'error');
+    } finally {
+      event.target.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ==========================================
+// SEARCHABLE SELECT DROPDOWN HELPER FUNCTIONS (Neo-Brutalism)
+// ==========================================
+
+function initializeSearchableSelect(selectId, placeholder = 'Gõ để tìm kiếm...') {
+  const selectEl = document.getElementById(selectId);
+  if (!selectEl) return;
+
+  // Prevent double initialization
+  if (selectEl.dataset.searchableInitialized === 'true') return;
+  selectEl.dataset.searchableInitialized = 'true';
+
+  // Create wrapper
+  const wrapper = document.createElement('div');
+  wrapper.className = 'searchable-select-wrapper';
+  wrapper.id = `${selectId}-searchable-wrapper`;
+
+  // Hide original select (non-intrusively, keeping form submissions intact)
+  selectEl.style.display = 'none';
+  selectEl.parentNode.insertBefore(wrapper, selectEl);
+  wrapper.appendChild(selectEl);
+
+  // Create input and arrow icon
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.className = 'searchable-select-input';
+  searchInput.placeholder = placeholder;
+  searchInput.autocomplete = 'off';
+  searchInput.id = `${selectId}-search-input`;
+  wrapper.appendChild(searchInput);
+
+  const arrow = document.createElement('i');
+  arrow.className = 'fa-solid fa-chevron-down searchable-select-arrow';
+  wrapper.appendChild(arrow);
+
+  // Create dropdown container
+  const dropdown = document.createElement('div');
+  dropdown.className = 'searchable-select-dropdown hidden';
+  dropdown.id = `${selectId}-searchable-dropdown`;
+  wrapper.appendChild(dropdown);
+
+  // Show dropdown on click or focus
+  searchInput.addEventListener('focus', () => {
+    wrapper.classList.add('open');
+    dropdown.classList.remove('hidden');
+    rebuildSearchableDropdownItems(selectId);
+  });
+
+  searchInput.addEventListener('click', () => {
+    wrapper.classList.add('open');
+    dropdown.classList.remove('hidden');
+  });
+
+  // Filter items on type
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const items = dropdown.querySelectorAll('.searchable-select-item:not(.no-results)');
+    let matches = 0;
+
+    items.forEach(item => {
+      const text = item.textContent.toLowerCase();
+      if (text.includes(query)) {
+        item.style.display = '';
+        matches++;
+      } else {
+        item.style.display = 'none';
+      }
+    });
+
+    const noResultsEl = dropdown.querySelector('.no-results');
+    if (matches === 0) {
+      if (!noResultsEl) {
+        const noRes = document.createElement('div');
+        noRes.className = 'searchable-select-item no-results';
+        noRes.textContent = 'Không tìm thấy kết quả';
+        dropdown.appendChild(noRes);
+      }
+    } else if (noResultsEl) {
+      noResultsEl.remove();
+    }
+  });
+
+  // Close dropdown on click outside
+  document.addEventListener('click', (e) => {
+    if (!wrapper.contains(e.target)) {
+      wrapper.classList.remove('open');
+      dropdown.classList.add('hidden');
+      
+      // Reset input value to currently selected option label
+      const selectedOpt = selectEl.options[selectEl.selectedIndex];
+      searchInput.value = selectedOpt ? selectedOpt.textContent : '';
+    }
+  });
+}
+
+function rebuildSearchableDropdownItems(selectId) {
+  const selectEl = document.getElementById(selectId);
+  const dropdown = document.getElementById(`${selectId}-searchable-dropdown`);
+  const searchInput = document.getElementById(`${selectId}-search-input`);
+  if (!selectEl || !dropdown) return;
+
+  dropdown.innerHTML = '';
+  const options = Array.from(selectEl.options);
+
+  if (options.length === 0 || (options.length === 1 && options[0].value === '')) {
+    const noRes = document.createElement('div');
+    noRes.className = 'searchable-select-item no-results';
+    noRes.textContent = options[0] ? options[0].textContent : 'Không có tùy chọn';
+    dropdown.appendChild(noRes);
+    return;
+  }
+
+  options.forEach(opt => {
+    const item = document.createElement('div');
+    item.className = 'searchable-select-item';
+    if (opt.value === selectEl.value) {
+      item.classList.add('selected');
+    }
+    item.textContent = opt.textContent;
+    item.dataset.value = opt.value;
+
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectEl.value = opt.value;
+      
+      // Dispatch change event to trigger Zalo config updates/form handling
+      selectEl.dispatchEvent(new Event('change'));
+
+      searchInput.value = opt.textContent;
+      
+      const wrapper = document.getElementById(`${selectId}-searchable-wrapper`);
+      if (wrapper) wrapper.classList.remove('open');
+      dropdown.classList.add('hidden');
+    });
+
+    dropdown.appendChild(item);
+  });
+}
+
+function syncSearchableSelect(selectId) {
+  const selectEl = document.getElementById(selectId);
+  const searchInput = document.getElementById(`${selectId}-search-input`);
+  if (!selectEl || !searchInput) return;
+
+  const selectedOpt = selectEl.options[selectEl.selectedIndex];
+  searchInput.value = selectedOpt ? selectedOpt.textContent : '';
+  
+  // Re-build dropdown in background if it's currently visible
+  const dropdown = document.getElementById(`${selectId}-searchable-dropdown`);
+  if (dropdown && !dropdown.classList.contains('hidden')) {
+    rebuildSearchableDropdownItems(selectId);
   }
 }

@@ -1005,3 +1005,91 @@ input:checked + .slider:before {
   box-shadow: var(--btn-shadow-sm);
   margin-bottom: 12px;
 }
+
+/* Searchable Select styles (Neo-Brutalism) */
+.searchable-select-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.searchable-select-input {
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  background: var(--panel-bg);
+  border: var(--border-width) solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  box-shadow: var(--input-shadow);
+}
+
+.searchable-select-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 2px 2px 0px var(--panel-border);
+}
+
+.searchable-select-arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--panel-border);
+  font-size: 14px;
+  pointer-events: none;
+  transition: transform 0.2s ease;
+}
+
+.searchable-select-wrapper.open .searchable-select-arrow {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.searchable-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  max-height: 250px;
+  overflow-y: auto;
+  background: var(--panel-bg);
+  border: var(--border-width) solid var(--panel-border);
+  border-radius: 8px;
+  z-index: 1050;
+  box-shadow: 4px 4px 0px var(--panel-border);
+}
+
+.searchable-select-item {
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.1s ease;
+  border-bottom: 2px solid var(--panel-border);
+}
+
+.searchable-select-item:last-child {
+  border-bottom: none;
+}
+
+.searchable-select-item:hover,
+.searchable-select-item.selected {
+  background: var(--secondary-color);
+  color: var(--text-primary);
+}
+
+.searchable-select-item.no-results {
+  color: var(--text-muted);
+  text-align: center;
+  font-style: italic;
+  cursor: default;
+  padding: 12px;
+}
+
+.searchable-select-item.no-results:hover {
+  background: transparent;
+}

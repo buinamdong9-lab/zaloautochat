@@ -371,6 +371,42 @@
                   </tr>
                 </tbody>
               </table>
+          </div>
+
+          <div class="action-header" style="margin-top: 32px;">
+            <h3><i class="fa-solid fa-server"></i> Quản lý Proxy Pool</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="file" id="proxy-file-input" accept=".json" style="display: none;" onchange="importProxiesFromFile(event)">
+              <button class="btn btn-secondary" onclick="document.getElementById('proxy-file-input').click()">
+                <i class="fa-solid fa-file-import"></i> Nhập từ JSON
+              </button>
+              <button class="btn btn-secondary" id="btn-scan-proxies" onclick="triggerProxyScan()">
+                <i class="fa-solid fa-arrows-spin"></i> Quét nhanh Proxy
+              </button>
+              <button class="btn btn-primary" onclick="openAddProxyModal()">
+                <i class="fa-solid fa-plus"></i> Thêm proxy mới
+              </button>
+            </div>
+          </div>
+          
+          <div class="card glass table-card" style="margin-bottom: 24px;">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>URL Proxy</th>
+                    <th>Trạng thái</th>
+                    <th>Ngày tạo</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-proxies-table-body">
+                  <tr>
+                    <td colspan="5" class="text-center placeholder-text">Đang tải danh sách proxy...</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -537,9 +573,16 @@
           </select>
         </div>
         <div class="form-group">
-          <label for="admin-user-proxy"><i class="fa-solid fa-server"></i> HTTP/HTTPS Proxy (Tùy chọn)</label>
-          <input type="text" id="admin-user-proxy" placeholder="Ví dụ: http://12.34.56.78:9090">
-          <span class="input-help">Định dạng: `http://ip:port` hoặc `http://user:pass@ip:port`</span>
+          <label for="admin-user-proxy-select"><i class="fa-solid fa-server"></i> HTTP/SOCKS Proxy (Tùy chọn)</label>
+          <select id="admin-user-proxy-select" onchange="handleUserProxySelectChange()">
+            <option value="">Không sử dụng proxy</option>
+            <option value="custom">-- Nhập thủ công... --</option>
+          </select>
+        </div>
+        <div class="form-group hidden" id="admin-user-proxy-custom-container">
+          <label for="admin-user-proxy"><i class="fa-solid fa-keyboard"></i> Nhập proxy thủ công</label>
+          <input type="text" id="admin-user-proxy" placeholder="Ví dụ: socks5://12.34.56.78:1080">
+          <span class="input-help">Định dạng: `protocol://ip:port` hoặc `protocol://user:pass@ip:port`</span>
         </div>
         <div class="form-group">
           <label class="checkbox-container">
@@ -551,6 +594,35 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeUserModal()">Hủy bỏ</button>
           <button type="submit" class="btn btn-primary">Lưu người dùng</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ADD/EDIT PROXY MODAL (ADMIN ONLY) -->
+  <div id="proxy-modal" class="modal-wrapper hidden">
+    <div class="modal-content glass" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 id="proxy-modal-title">Thêm proxy mới vào pool</h3>
+        <button class="close-btn" onclick="closeProxyModal()">&times;</button>
+      </div>
+      <form id="proxy-form">
+        <input type="hidden" id="admin-proxy-id">
+        <div class="form-group">
+          <label for="admin-proxy-url"><i class="fa-solid fa-link"></i> URL Proxy</label>
+          <input type="text" id="admin-proxy-url" placeholder="Ví dụ: http://ip:port hoặc socks5://ip:port" required>
+          <span class="input-help">Hỗ trợ giao thức: `http://`, `https://`, `socks4://`, `socks5://`. Bạn cũng có thể kèm user/pass: `http://user:pass@ip:port`.</span>
+        </div>
+        <div class="form-group">
+          <label class="checkbox-container">
+            Kích hoạt sử dụng (Active)
+            <input type="checkbox" id="admin-proxy-active" checked>
+            <span class="checkmark"></span>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeProxyModal()">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary">Lưu proxy</button>
         </div>
       </form>
     </div>

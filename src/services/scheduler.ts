@@ -1,6 +1,9 @@
 import cron from 'node-cron';
 import db from '../config/db';
 import { ZaloService } from './zaloService';
+import https from 'https';
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 
 export class SchedulerService {
   // Map of scheduleId -> cron task
@@ -153,5 +156,91 @@ export class SchedulerService {
     }
     this.activeJobs.clear();
     console.log('⏰ Stopped all active scheduler jobs.');
+  }
+
+  /**
+   * Start a cron job to check the health of all proxies in the pool every 30 minutes
+   */
+  public static initProxyChecker() {
+    console.log('⏰ Initializing background proxy health checker...');
+    
+    // Run immediately on startup in background
+    setTimeout(() => this.checkAllProxies(), 5000);
+
+    // Cron job to run every 30 minutes
+    cron.schedule('*/30 * * * *', async () => {
+      console.log('⏰ Running scheduled proxy health check...');
+      await this.checkAllProxies();
+    });
+  }
+
+  /**
+   * Check health of all active proxies and deactivate dead ones
+   */
+  public static async checkAllProxies(): Promise<{ total: number, deactivated: number }> {
+    try {
+      const activeProxies = db.prepare('SELECT * FROM proxies WHERE is_active = 1').all() as any[];
+      if (activeProxies.length === 0) {
+        console.log('[Proxy Checker] No active proxies in pool to check.');
+        return { total: 0, deactivated: 0 };
+      }
+
+      console.log(`[Proxy Checker] Validating ${activeProxies.length} active proxies...`);
+      let deactivatedCount = 0;
+
+      for (const p of activeProxies) {
+        const isHealthy = await this.checkProxyHealth(p.url);
+        if (!isHealthy) {
+          console.warn(`[Proxy Checker] Proxy ${p.url} is dead. Deactivating in pool.`);
+          db.prepare('UPDATE proxies SET is_active = 0 WHERE id = ?').run(p.id);
+          deactivatedCount++;
+        }
+      }
+
+      console.log(`[Proxy Checker] Validation complete. Deactivated ${deactivatedCount} dead proxies.`);
+      return { total: activeProxies.length, deactivated: deactivatedCount };
+    } catch (err) {
+      console.error('[Proxy Checker] Error during proxy pool validation:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Helper to perform a fast HTTPS request through a proxy to verify connection
+   */
+  private static checkProxyHealth(proxyUrl: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      try {
+        let agent;
+        const cleanUrl = proxyUrl.trim();
+        if (cleanUrl.startsWith('socks4://') || cleanUrl.startsWith('socks5://') || cleanUrl.startsWith('socks://')) {
+          agent = new SocksProxyAgent(cleanUrl);
+        } else {
+          agent = new HttpsProxyAgent(cleanUrl);
+        }
+
+        const req = https.get('https://api.ipify.org?format=json', {
+          agent,
+          timeout: 4000 // 4 seconds timeout for checker
+        }, (res) => {
+          if (res.statusCode === 200) {
+            resolve(true);
+          } else {
+            resolve(false);
+          }
+        });
+
+        req.on('error', () => {
+          resolve(false);
+        });
+
+        req.on('timeout', () => {
+          req.destroy();
+          resolve(false);
+        });
+      } catch (err) {
+        resolve(false);
+      }
+    });
   }
 }

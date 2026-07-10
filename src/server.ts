@@ -604,6 +604,126 @@ app.get('/api/admin/schedules', authenticateToken, requireAdmin, (req: Authentic
   }
 });
 
+// Admin Proxy Pool API Endpoints
+app.post('/api/admin/proxies/scan', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await SchedulerService.checkAllProxies();
+    return res.json({
+      success: true,
+      message: `Quét proxy hoàn tất! Đã kiểm tra ${result.total} proxy, vô hiệu hóa ${result.deactivated} proxy chết.`,
+      result
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: `Lỗi quét proxy: ${(err as Error).message}` });
+  }
+});
+
+app.post('/api/admin/proxies/import', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const { proxies } = req.body;
+  if (!Array.isArray(proxies) || proxies.length === 0) {
+    return res.status(400).json({ success: false, message: 'Invalid or empty proxy list' });
+  }
+  
+  try {
+    const insert = db.prepare('INSERT OR IGNORE INTO proxies (url, is_active) VALUES (?, 1)');
+    
+    // Perform batch insert in transaction for maximum performance
+    const insertMany = db.transaction((proxyList: string[]) => {
+      let count = 0;
+      for (const url of proxyList) {
+        if (typeof url === 'string' && url.trim()) {
+          const result = insert.run(url.trim());
+          if (result.changes > 0) count++;
+        }
+      }
+      return count;
+    });
+    
+    const importedCount = insertMany(proxies);
+    return res.json({
+      success: true,
+      message: `Đã nhập thành công ${importedCount} proxy mới vào pool.`,
+      importedCount
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: (err as Error).message });
+  }
+});
+
+app.get('/api/admin/proxies', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const proxies = db.prepare('SELECT * FROM proxies ORDER BY id DESC').all();
+    return res.json({ success: true, proxies });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: (err as Error).message });
+  }
+});
+
+app.post('/api/admin/proxies', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const { url, is_active } = req.body;
+  if (!url || typeof url !== 'string' || !url.trim()) {
+    return res.status(400).json({ success: false, message: 'Proxy URL is required' });
+  }
+  
+  const cleanUrl = url.trim();
+  try {
+    db.prepare('INSERT INTO proxies (url, is_active) VALUES (?, ?)')
+      .run(cleanUrl, is_active !== undefined ? (is_active ? 1 : 0) : 1);
+    return res.json({ success: true, message: 'Proxy added successfully to pool!' });
+  } catch (err) {
+    if ((err as any).code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(400).json({ success: false, message: 'Proxy URL already exists in pool' });
+    }
+    return res.status(500).json({ success: false, message: (err as Error).message });
+  }
+});
+
+app.put('/api/admin/proxies/:id', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const proxyId = parseInt(req.params.id);
+  const { url, is_active } = req.body;
+  
+  try {
+    const fields: string[] = [];
+    const params: any[] = [];
+    
+    if (url !== undefined) {
+      if (typeof url !== 'string' || !url.trim()) {
+        return res.status(400).json({ success: false, message: 'Proxy URL cannot be empty' });
+      }
+      fields.push('url = ?');
+      params.push(url.trim());
+    }
+    
+    if (is_active !== undefined) {
+      fields.push('is_active = ?');
+      params.push(is_active ? 1 : 0);
+    }
+    
+    if (fields.length === 0) {
+      return res.status(400).json({ success: false, message: 'Nothing to update' });
+    }
+    
+    params.push(proxyId);
+    db.prepare(`UPDATE proxies SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+    return res.json({ success: true, message: 'Proxy updated successfully!' });
+  } catch (err) {
+    if ((err as any).code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(400).json({ success: false, message: 'Proxy URL already exists in pool' });
+    }
+    return res.status(500).json({ success: false, message: (err as Error).message });
+  }
+});
+
+app.delete('/api/admin/proxies/:id', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res: Response) => {
+  const proxyId = parseInt(req.params.id);
+  try {
+    db.prepare('DELETE FROM proxies WHERE id = ?').run(proxyId);
+    return res.json({ success: true, message: 'Proxy deleted successfully!' });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: (err as Error).message });
+  }
+});
+
 // Redirect route for the dashboard
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
@@ -615,6 +735,7 @@ app.listen(PORT, () => {
   
   // Initialize user schedules on startup
   SchedulerService.initSchedules();
+  SchedulerService.initProxyChecker();
 });
 
 // Graceful shutdown
