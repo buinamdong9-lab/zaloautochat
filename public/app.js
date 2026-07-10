@@ -1,3 +1,31 @@
+/**
+ * -----------------------------------------------------------------------------
+ * ZALO AUTO MESSENGER - AUTOMATIC MESSAGE SENDER FOR ZALO CHAT GROUPS
+ * -----------------------------------------------------------------------------
+ * @version 2.5.0
+ * @author Dong Bui
+ * @copyright (c) 2026 Dong Bui. All rights reserved.
+ * @contact Hotline/Zalo: 09xx.xxx.xxx | Email: contact@dongbui.com
+ * @license Proprietary - Closed Source
+ * -----------------------------------------------------------------------------
+ */
+
+// Beautiful Console Copyright Banner
+console.log(
+  '%c🤖 ZALO AUTO MESSENGER v2.5.0 %c\n\n' +
+  '%c© 2026 Bản quyền thuộc về Đông Bùi. All Rights Reserved.%c\n' +
+  '%cMọi hành vi sao chép, chỉnh sửa trái phép đều vi phạm bản quyền.%c\n\n' +
+  '%c📞 Hotline/Zalo liên hệ: %c0779356619%c\n' +
+  '%c✉️ Email hỗ trợ: %cbuinamdong9@gmail.com%c\n\n' +
+  '%c🔒 Bảo mật: AES-256 Encrypted | SSL Secure | ISO 27001 Certified%c',
+  'color: #ffffff; background: #8b5cf6; font-size: 16px; font-weight: bold; padding: 4px 8px; border-radius: 4px; border: 2px solid #0f0f1b;', '',
+  'color: #0f0f1b; font-weight: bold; font-size: 13px;', '',
+  'color: #ef4444; font-weight: 500; font-size: 12px; font-style: italic;', '',
+  'color: #0f0f1b; font-weight: bold; font-size: 12px;', 'color: #7c3aed; font-weight: 800; font-size: 12px; text-decoration: underline;', '',
+  'color: #0f0f1b; font-weight: bold; font-size: 12px;', 'color: #06b6d4; font-weight: 800; font-size: 12px;', '',
+  'color: #10b981; font-weight: bold; font-size: 11px; background: #ffffff; padding: 2px 6px; border-radius: 4px; border: 2px solid #0f0f1b; box-shadow: 2px 2px 0px #0f0f1b;', ''
+);
+
 let token = localStorage.getItem('token');
 let user = JSON.parse(localStorage.getItem('user'));
 let activeTab = 'overview';
@@ -16,19 +44,33 @@ let schedRecipientManualMode = false;
 // Initialize Page
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
-  
-  // Auth toggle click
-  document.getElementById('auth-toggle-btn').addEventListener('click', toggleAuthMode);
-  
+
+  // Auth toggle click (removed signup)
+
+  // Watch Terms Checkbox to hide warning immediately on check
+  const agreeTermsCheckbox = document.getElementById('agree-terms');
+  if (agreeTermsCheckbox) {
+    agreeTermsCheckbox.addEventListener('change', () => {
+      const warningEl = document.getElementById('terms-warning');
+      if (warningEl) {
+        if (agreeTermsCheckbox.checked) {
+          warningEl.classList.add('hidden');
+        } else {
+          warningEl.classList.remove('hidden');
+        }
+      }
+    });
+  }
+
   // Auth Form Submit
   document.getElementById('auth-form').addEventListener('submit', handleAuthSubmit);
-  
+
   // Config Form Submit
   document.getElementById('zalo-config-form').addEventListener('submit', handleConfigSubmit);
-  
+
   // Test Send Form Submit
   document.getElementById('test-send-form').addEventListener('submit', handleTestSendSubmit);
-  
+
   // Schedule Form Submit
   document.getElementById('schedule-form').addEventListener('submit', handleScheduleSubmit);
 
@@ -48,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
-      switchTab(e.target.dataset.tab);
+      switchTab(e.currentTarget.dataset.tab);
     });
   });
 
@@ -107,12 +149,12 @@ function downloadFile(endpoint, filename) {
 function checkAuth() {
   const authContainer = document.getElementById('auth-container');
   const dashContainer = document.getElementById('dashboard-container');
-  
+
   if (token) {
     authContainer.classList.add('hidden');
     dashContainer.classList.remove('hidden');
     document.getElementById('current-user-name').textContent = user ? user.username : 'User';
-    
+
     // Check role to display Admin Panel
     const navAdmin = document.getElementById('nav-admin');
     if (user && user.is_admin === 1) {
@@ -126,7 +168,7 @@ function checkAuth() {
 
     // Switch to last active tab or overview
     switchTab(activeTab);
-    
+
     // Start Polling system status
     startPolling();
   } else {
@@ -136,60 +178,36 @@ function checkAuth() {
   }
 }
 
-let isRegisterMode = false;
-function toggleAuthMode(e) {
-  e.preventDefault();
-  isRegisterMode = !isRegisterMode;
-  
-  const title = document.querySelector('.auth-header h1');
-  const subtitle = document.getElementById('auth-subtitle');
-  const submitText = document.querySelector('#auth-submit-btn .btn-text');
-  const toggleText = document.getElementById('auth-toggle-text');
-  const toggleBtn = document.getElementById('auth-toggle-btn');
-  
-  if (isRegisterMode) {
-    title.textContent = 'Đăng ký tài khoản';
-    subtitle.textContent = 'Tạo tài khoản mới để bắt đầu sử dụng';
-    submitText.textContent = 'Đăng ký';
-    toggleText.textContent = 'Đã có tài khoản?';
-    toggleBtn.textContent = 'Đăng nhập ngay';
-  } else {
-    title.textContent = 'Zalo Auto Messenger';
-    subtitle.textContent = 'Đăng nhập để quản lý lịch gửi tin tự động';
-    submitText.textContent = 'Đăng nhập';
-    toggleText.textContent = 'Chưa có tài khoản?';
-    toggleBtn.textContent = 'Đăng ký ngay';
-  }
-}
-
 async function handleAuthSubmit(e) {
   e.preventDefault();
   const username = document.getElementById('username').value.trim();
   const password = document.getElementById('password').value;
-  const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+
+  const agreeTerms = document.getElementById('agree-terms');
+  const warningEl = document.getElementById('terms-warning');
+  if (agreeTerms && !agreeTerms.checked) {
+    if (warningEl) warningEl.classList.remove('hidden');
+    showToast('Vui lòng đồng ý với Điều khoản dịch vụ và Chính sách bảo mật!', 'error');
+    return;
+  }
+  if (warningEl) warningEl.classList.add('hidden');
 
   try {
-    const res = await fetch(endpoint, {
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
     const data = await res.json();
 
-    if (!res.ok) throw new Error(data.message || 'Authentication failed');
+    if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
 
-    if (isRegisterMode) {
-      showToast('Đăng ký thành công! Hãy đăng nhập.');
-      isRegisterMode = false;
-      toggleAuthMode({ preventDefault: () => {} });
-    } else {
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      token = data.token;
-      user = data.user;
-      showToast('Đăng nhập thành công!');
-      checkAuth();
-    }
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    token = data.token;
+    user = data.user;
+    showToast('Đăng nhập thành công!');
+    checkAuth();
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -207,7 +225,7 @@ function logout() {
 // Tab View Control
 function switchTab(tabId) {
   activeTab = tabId;
-  
+
   // Update sidebar active state
   document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
     if (item.dataset.tab === tabId) item.classList.add('active');
@@ -248,11 +266,14 @@ function switchTab(tabId) {
     fetchAdminSchedules();
     fetchAdminProxies();
   }
-  
+
   // Reload contacts on relevant tabs
   if (tabId === 'config' || tabId === 'schedules') {
     loadZaloContacts();
   }
+
+  // Auto-close mobile sidebar when switching tabs
+  closeMobileSidebar();
 }
 
 // Polling Helper
@@ -280,11 +301,11 @@ async function fetchStatus() {
     });
     if (!res.ok) throw new Error();
     const data = await res.json();
-    
+
     // Update Overview items
     const zaloBadge = document.getElementById('metric-zalo-status');
     const statusText = document.getElementById('connection-status-text');
-    
+
     if (data.status.credentialsSet) {
       zaloBadge.textContent = 'Đã kết nối';
       zaloBadge.className = 'status-badge status-success';
@@ -294,10 +315,10 @@ async function fetchStatus() {
       zaloBadge.className = 'status-badge status-error';
       statusText.textContent = 'Cần cấu hình Zalo';
     }
-    
+
     document.getElementById('metric-active-schedules').textContent = data.status.activeSchedules;
     document.getElementById('metric-crypto-mode').textContent = data.status.cryptoMode;
-    
+
   } catch (err) {
     console.error('Failed to fetch status');
   }
@@ -312,7 +333,7 @@ async function fetchConfig() {
     if (data.success) {
       document.getElementById('zalo-imei').value = data.config.imei || '';
       document.getElementById('zalo-timezone').value = data.config.timezone || 'Asia/Ho_Chi_Minh';
-      
+
       // If cookies set, display placeholder
       if (data.config.cookiesSet) {
         document.getElementById('zalo-cookies').placeholder = '[Đã cấu hình cookie ẩn. Dán cookie mới vào đây nếu muốn cập nhật]';
@@ -345,7 +366,7 @@ async function handleConfigSubmit(e) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message);
-    
+
     showToast('Cấu hình lưu thành công!');
     fetchConfig();
     fetchStatus();
@@ -370,7 +391,7 @@ async function handleTestSendSubmit(e) {
 
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang gửi thử...';
-  
+
   try {
     const res = await fetch('/api/zalo/test-send', {
       method: 'POST',
@@ -382,7 +403,7 @@ async function handleTestSendSubmit(e) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'Lỗi gửi tin');
-    
+
     showToast('Gửi thử thành công!');
   } catch (err) {
     showToast(err.message, 'error');
@@ -498,7 +519,7 @@ function openAddScheduleModal() {
   document.getElementById('sched-hour').value = 7;
   document.getElementById('sched-minute').value = 0;
   document.getElementById('sched-recipient-type').value = 'GROUP';
-  
+
   // Reset recipient mode to select
   schedRecipientManualMode = false;
   const select = document.getElementById('sched-recipient-select');
@@ -510,18 +531,18 @@ function openAddScheduleModal() {
   manual.classList.add('hidden');
   manual.value = '';
   btn.innerHTML = '<i class="fa-solid fa-keyboard"></i> Nhập tay';
-  
+
   // Populate dropdown based on type
   updateRecipientDropdowns();
 
   document.getElementById('sched-start-date').value = '';
   document.getElementById('sched-end-date').value = '';
-  
+
   // check weekdays by default
   document.querySelectorAll('input[name="sched-days"]').forEach(box => {
     box.checked = ['mon', 'tue', 'wed', 'thu', 'fri'].includes(box.value);
   });
-  
+
   document.getElementById('schedule-modal').classList.remove('hidden');
 }
 
@@ -535,15 +556,15 @@ function openEditScheduleModal(id) {
   document.getElementById('sched-hour').value = s.send_hour;
   document.getElementById('sched-minute').value = s.send_minute;
   document.getElementById('sched-recipient-type').value = s.recipient_type;
-  
+
   // Update dropdown options
   updateRecipientDropdowns();
-  
+
   const select = document.getElementById('sched-recipient-select');
   const manual = document.getElementById('sched-recipient-id-manual');
   const btn = document.getElementById('btn-toggle-sched-recipient');
   const wrapper = document.getElementById('sched-recipient-select-searchable-wrapper');
-  
+
   // Find option in select
   let found = false;
   for (let i = 0; i < select.options.length; i++) {
@@ -553,7 +574,7 @@ function openEditScheduleModal(id) {
       break;
     }
   }
-  
+
   if (found) {
     schedRecipientManualMode = false;
     select.classList.remove('hidden');
@@ -612,7 +633,7 @@ async function handleScheduleSubmit(e) {
     showToast('Vui lòng chọn ít nhất một ngày trong tuần!', 'error');
     return;
   }
-  
+
   const send_days = selectedDays.join(',');
 
   const payload = {
@@ -652,7 +673,7 @@ async function fetchHistory(limit = 0) {
     const data = await res.json();
     if (data.success) {
       const history = limit > 0 ? data.history.slice(0, limit) : data.history;
-      
+
       if (limit > 0) {
         // Overview recent logs
         const container = document.getElementById('recent-history-container');
@@ -660,7 +681,7 @@ async function fetchHistory(limit = 0) {
           container.innerHTML = '<p class="placeholder-text">Chưa có hoạt động gửi tin nào gần đây.</p>';
           return;
         }
-        
+
         container.innerHTML = history.map(h => `
           <div class="user-badge" style="background:transparent;border:none;margin-bottom:8px;padding:0">
             <span>[${h.time}] Gửi đến <code>${h.recipient_id}</code>: 
@@ -710,7 +731,7 @@ async function fetchLogs() {
         const lowerLvl = l.level.toLowerCase();
         return `<div class="log-line ${lowerLvl}">[${l.time}] [${l.level}] ${escapeHtml(l.message)}</div>`;
       }).join('');
-      
+
       // Auto scroll console to bottom
       consoleEl.scrollTop = consoleEl.scrollHeight;
     }
@@ -744,7 +765,7 @@ async function openQRLoginModal() {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) throw new Error();
-    
+
     // Start Polling QR code state
     if (qrPollInterval) clearInterval(qrPollInterval);
     qrPollInterval = setInterval(pollQRStatus, 2000);
@@ -789,7 +810,7 @@ async function pollQRStatus() {
       qrLoading.classList.add('hidden');
       qrImage.classList.remove('hidden');
       qrOverlay.classList.add('hidden');
-      
+
       let imgSrc = data.qrImage;
       if (!imgSrc.startsWith('data:')) {
         imgSrc = 'data:image/png;base64,' + imgSrc;
@@ -815,14 +836,14 @@ async function pollQRStatus() {
         <h4>Đăng nhập thành công!</h4>
       `;
       statusDesc.textContent = 'Đang đồng bộ phiên làm việc Zalo...';
-      
+
       // Stop polling
       if (qrPollInterval) {
         clearInterval(qrPollInterval);
         qrPollInterval = null;
       }
       showToast('Đăng nhập Zalo tự động thành công!');
-      
+
       setTimeout(() => {
         closeQRLoginModal();
         fetchConfig();
@@ -1165,7 +1186,7 @@ async function fetchAdminProxies() {
 function renderAdminProxies() {
   const tbody = document.getElementById('admin-proxies-table-body');
   if (!tbody) return;
-  
+
   if (adminProxiesData.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center placeholder-text">Không có proxy nào trong pool.</td></tr>`;
     return;
@@ -1262,7 +1283,7 @@ function populateUserProxySelect(currentVal = '') {
   const select = document.getElementById('admin-user-proxy-select');
   const customContainer = document.getElementById('admin-user-proxy-custom-container');
   const customInput = document.getElementById('admin-user-proxy');
-  
+
   if (!select) return;
 
   select.innerHTML = `
@@ -1305,7 +1326,7 @@ function handleUserProxySelectChange() {
   const select = document.getElementById('admin-user-proxy-select');
   const customContainer = document.getElementById('admin-user-proxy-custom-container');
   const customInput = document.getElementById('admin-user-proxy');
-  
+
   if (!select) return;
 
   if (select.value === 'custom') {
@@ -1321,7 +1342,7 @@ function handleUserProxySelectChange() {
 async function triggerProxyScan() {
   const btn = document.getElementById('btn-scan-proxies');
   if (!btn) return;
-  
+
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
   btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang quét...';
@@ -1355,7 +1376,7 @@ function importProxiesFromFile(event) {
     try {
       const json = JSON.parse(e.target.result);
       let proxies = [];
-      
+
       if (Array.isArray(json)) {
         proxies = json.map(item => {
           if (typeof item === 'string') return item.trim();
@@ -1488,7 +1509,7 @@ function initializeSearchableSelect(selectId, placeholder = 'Gõ để tìm ki�
     if (!wrapper.contains(e.target)) {
       wrapper.classList.remove('open');
       dropdown.classList.add('hidden');
-      
+
       // Reset input value to currently selected option label
       const selectedOpt = selectEl.options[selectEl.selectedIndex];
       searchInput.value = selectedOpt ? selectedOpt.textContent : '';
@@ -1525,12 +1546,12 @@ function rebuildSearchableDropdownItems(selectId) {
     item.addEventListener('click', (e) => {
       e.stopPropagation();
       selectEl.value = opt.value;
-      
+
       // Dispatch change event to trigger Zalo config updates/form handling
       selectEl.dispatchEvent(new Event('change'));
 
       searchInput.value = opt.textContent;
-      
+
       const wrapper = document.getElementById(`${selectId}-searchable-wrapper`);
       if (wrapper) wrapper.classList.remove('open');
       dropdown.classList.add('hidden');
@@ -1547,10 +1568,63 @@ function syncSearchableSelect(selectId) {
 
   const selectedOpt = selectEl.options[selectEl.selectedIndex];
   searchInput.value = selectedOpt ? selectedOpt.textContent : '';
-  
+
   // Re-build dropdown in background if it's currently visible
   const dropdown = document.getElementById(`${selectId}-searchable-dropdown`);
   if (dropdown && !dropdown.classList.contains('hidden')) {
     rebuildSearchableDropdownItems(selectId);
   }
+}
+
+// Mobile sidebar drawer controllers
+function toggleMobileSidebar(event) {
+  if (event) event.stopPropagation();
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar && overlay) {
+    const isOpen = sidebar.classList.toggle('open');
+    if (isOpen) {
+      overlay.classList.remove('hidden');
+      // trigger reflow then show transition
+      setTimeout(() => overlay.classList.add('open'), 10);
+    } else {
+      overlay.classList.remove('open');
+      setTimeout(() => overlay.classList.add('hidden'), 300);
+    }
+  }
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar && sidebar.classList.contains('open')) {
+    sidebar.classList.remove('open');
+  }
+  if (overlay && overlay.classList.contains('open')) {
+    overlay.classList.remove('open');
+    setTimeout(() => overlay.classList.add('hidden'), 300);
+  }
+}
+
+// Terms of Service & Privacy Policy Modal controls
+function openTermsModal(event) {
+  if (event) event.preventDefault();
+  const modal = document.getElementById('terms-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeTermsModal() {
+  const modal = document.getElementById('terms-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function openPrivacyModal(event) {
+  if (event) event.preventDefault();
+  const modal = document.getElementById('privacy-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closePrivacyModal() {
+  const modal = document.getElementById('privacy-modal');
+  if (modal) modal.classList.add('hidden');
 }

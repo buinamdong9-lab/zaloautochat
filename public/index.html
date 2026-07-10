@@ -35,21 +35,37 @@
           <label for="password"><i class="fa-solid fa-lock"></i> Mật khẩu</label>
           <input type="password" id="password" placeholder="Nhập mật khẩu..." required>
         </div>
+        <div class="form-group terms-container" style="margin-top: 16px; margin-bottom: 8px;">
+          <label class="checkbox-container">
+            Tôi đồng ý với <a href="#" onclick="openTermsModal(event)" class="link-glow" style="margin: 0 4px; text-decoration: underline;">Điều khoản dịch vụ</a> và <a href="#" onclick="openPrivacyModal(event)" class="link-glow" style="text-decoration: underline;">Chính sách bảo mật</a>
+            <input type="checkbox" id="agree-terms" required>
+            <span class="checkmark"></span>
+          </label>
+          <div id="terms-warning" class="terms-error-message hidden" style="color: var(--rose); font-size: 11px; font-weight: 700; margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-circle-exclamation"></i> Bạn phải đồng ý với điều khoản để tiếp tục!
+          </div>
+        </div>
         <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-block">
           <span class="btn-text">Đăng nhập</span>
           <i class="fa-solid fa-arrow-right"></i>
         </button>
       </form>
-      
-      <div class="auth-footer">
-        <span id="auth-toggle-text">Chưa có tài khoản?</span>
-        <a href="#" id="auth-toggle-btn">Đăng ký ngay</a>
+
+      <div class="auth-card-footer" style="margin-top: 24px; padding-top: 16px; border-top: 2px dashed rgba(15, 15, 27, 0.15); text-align: center; font-size: 11px; color: var(--text-muted); line-height: 1.6;">
+        <p>© 2026 Bản quyền thuộc về <strong>Đông Bùi</strong>. All Rights Reserved.</p>
+        <p style="margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;">
+          <span>Zalo Auto v2.5.0</span>
+          <span style="background: #d1fae5; color: #065f46; padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 9px; border: 1px solid var(--panel-border); text-transform: uppercase;">SSL SECURE</span>
+          <span style="background: #e0f2fe; color: #0369a1; padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 9px; border: 1px solid var(--panel-border); text-transform: uppercase;">AES-256</span>
+          <span style="background: #fef3c7; color: #92400e; padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 9px; border: 1px solid var(--panel-border); text-transform: uppercase;">ISO 27001</span>
+        </p>
       </div>
     </div>
   </div>
 
   <!-- MAIN DASHBOARD -->
   <div id="dashboard-container" class="dashboard-wrapper hidden">
+    <div id="sidebar-overlay" class="sidebar-overlay hidden" onclick="toggleMobileSidebar(event)"></div>
     <!-- SIDEBAR -->
     <aside class="sidebar glass">
       <div class="sidebar-header">
@@ -83,10 +99,19 @@
         </a>
       </nav>
       
-      <div class="sidebar-footer">
-        <a href="#" id="logout-btn" class="nav-item logout">
+      <div class="sidebar-footer" style="margin-top: auto; display: flex; flex-direction: column; gap: 12px; border-top: 2px solid var(--panel-border); padding-top: 16px;">
+        <a href="#" id="logout-btn" class="nav-item logout" style="margin-top: 0;">
           <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
         </a>
+        <div class="copyright-info" style="font-size: 11px; color: var(--text-muted); text-align: center; line-height: 1.5; font-weight: 500;">
+          <p>© 2026 Bản quyền thuộc về <strong>Đông Bùi</strong></p>
+          <p>Version 2.5.0</p>
+          <div style="display: flex; gap: 4px; justify-content: center; margin-top: 6px; flex-wrap: wrap;">
+            <span style="background: #d1fae5; color: #065f46; padding: 1px 4px; border-radius: 4px; font-weight: 700; font-size: 8px; border: 1px solid var(--panel-border);">SSL SECURE</span>
+            <span style="background: #e0f2fe; color: #0369a1; padding: 1px 4px; border-radius: 4px; font-weight: 700; font-size: 8px; border: 1px solid var(--panel-border);">AES-256</span>
+            <span style="background: #fef3c7; color: #92400e; padding: 1px 4px; border-radius: 4px; font-weight: 700; font-size: 8px; border: 1px solid var(--panel-border);">ISO 27001</span>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -94,7 +119,12 @@
     <main class="content-area">
       <!-- HEADER -->
       <header class="content-header glass">
-        <h2 id="tab-title">Tổng quan</h2>
+        <div class="header-left">
+          <button id="mobile-menu-toggle" class="btn btn-secondary btn-sm mobile-menu-toggle" onclick="toggleMobileSidebar(event)">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <h2 id="tab-title">Tổng quan</h2>
+        </div>
         <div class="system-status-indicator">
           <span class="dot pulse green"></span>
           <span id="connection-status-text">Đang kết nối</span>
@@ -625,6 +655,56 @@
           <button type="submit" class="btn btn-primary">Lưu proxy</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- TERMS & CONDITIONS MODAL -->
+  <div id="terms-modal" class="modal-wrapper hidden">
+    <div class="modal-content glass" style="max-width: 600px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3>Điều khoản dịch vụ Zalo Auto Messenger</h3>
+        <button class="close-btn" onclick="closeTermsModal()">&times;</button>
+      </div>
+      <div class="modal-body-scrollable" style="flex: 1; overflow-y: auto; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+        <p style="margin-bottom: 12px; font-weight: 700; color: var(--text-primary);">Chào mừng bạn đến với Zalo Auto Messenger! Vui lòng đọc kỹ các điều khoản dưới đây trước khi sử dụng dịch vụ.</p>
+        
+        <h4 style="margin-top: 16px; margin-bottom: 6px; font-weight: 700; color: var(--text-primary);">1. Quy định sử dụng</h4>
+        <p style="margin-bottom: 12px;">Hệ thống Zalo Auto Messenger là phần mềm tự động hóa giúp người dùng gửi tin nhắn nhắc nhở, báo cáo hoặc điểm danh tự động vào nhóm chat Zalo theo lịch trình thiết lập sẵn. Người dùng chịu trách nhiệm hoàn toàn về mục đích và nội dung tin nhắn gửi đi.</p>
+        
+        <h4 style="margin-top: 16px; margin-bottom: 6px; font-weight: 700; color: var(--text-primary);">2. Giới hạn trách nhiệm</h4>
+        <p style="margin-bottom: 12px;">Hệ thống hoạt động dựa trên cơ chế Zalo Web API thông qua Cookies và IMEI của tài khoản người dùng cung cấp. Chúng tôi không chịu trách nhiệm trong trường hợp tài khoản Zalo của bạn bị hạn chế, khóa tính năng gửi tin nhắn hoặc khóa tài khoản vĩnh viễn do gửi tin quá nhiều, spam hoặc vi phạm chính sách cộng đồng của Zalo.</p>
+        
+        <h4 style="margin-top: 16px; margin-bottom: 6px; font-weight: 700; color: var(--text-primary);">3. An toàn bảo mật</h4>
+        <p style="margin-bottom: 12px;">Người dùng có trách nhiệm bảo mật tài khoản đăng nhập của mình trên hệ thống này. Không chia sẻ thông tin tài khoản hoặc mã đăng nhập cho bên thứ ba.</p>
+      </div>
+      <div class="modal-footer" style="margin-top: 16px; padding-top: 12px;">
+        <button type="button" class="btn btn-primary" onclick="closeTermsModal()">Đã hiểu và Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRIVACY POLICY MODAL -->
+  <div id="privacy-modal" class="modal-wrapper hidden">
+    <div class="modal-content glass" style="max-width: 600px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h3>Chính sách bảo mật thông tin</h3>
+        <button class="close-btn" onclick="closePrivacyModal()">&times;</button>
+      </div>
+      <div class="modal-body-scrollable" style="flex: 1; overflow-y: auto; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+        <p style="margin-bottom: 12px; font-weight: 700; color: var(--text-primary);">Chúng tôi cam kết bảo vệ thông tin cá nhân và dữ liệu tài khoản Zalo của người dùng.</p>
+        
+        <h4 style="margin-top: 16px; margin-bottom: 6px; font-weight: 700; color: var(--text-primary);">1. Dữ liệu thu thập</h4>
+        <p style="margin-bottom: 12px;">Hệ thống chỉ lưu trữ các thông tin cần thiết phục vụ cho việc tự động hóa bao gồm: Tên đăng nhập, mã băm mật khẩu tài khoản hệ thống, chuỗi Cookies Zalo Web và mã định danh thiết bị IMEI (UUID).</p>
+        
+        <h4 style="margin-top: 16px; margin-bottom: 6px; font-weight: 700; color: var(--text-primary);">2. Phương thức bảo mật</h4>
+        <p style="margin-bottom: 12px;">Mọi thông tin nhạy cảm của người dùng (như Cookies Zalo) đều được mã hóa bằng thuật toán mã hóa đối xứng AES-256 trên máy chủ trước khi lưu vào cơ sở dữ liệu. Mật khẩu đăng nhập hệ thống được mã hóa một chiều bằng thư viện bcrypt có độ an toàn cao.</p>
+        
+        <h4 style="margin-top: 16px; margin-bottom: 6px; font-weight: 700; color: var(--text-primary);">3. Cam kết</h4>
+        <p style="margin-bottom: 12px;">Hệ thống cam kết KHÔNG gửi thông tin Cookies, mật khẩu của bạn ra bất cứ bên thứ ba nào ngoại trừ việc gửi trực tiếp đến hệ thống API chính thức của Zalo để thực hiện hành động gửi tin nhắn. Chúng tôi không sử dụng dữ liệu của bạn cho bất kỳ mục đích thương mại nào khác.</p>
+      </div>
+      <div class="modal-footer" style="margin-top: 16px; padding-top: 12px;">
+        <button type="button" class="btn btn-primary" onclick="closePrivacyModal()">Đã hiểu và Đóng</button>
+      </div>
     </div>
   </div>
 

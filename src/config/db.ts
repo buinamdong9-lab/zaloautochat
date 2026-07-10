@@ -1,3 +1,15 @@
+/**
+ * -----------------------------------------------------------------------------
+ * ZALO AUTO MESSENGER - DATABASE CONNECTION CONFIGURATION
+ * -----------------------------------------------------------------------------
+ * @version 2.5.0
+ * @author Dong Bui
+ * @copyright (c) 2026 Dong Bui. All rights reserved.
+ * @contact Hotline/Zalo: 0779356619 | Email: buinamdong9@gmail.com
+ * @license Proprietary - Closed Source
+ * -----------------------------------------------------------------------------
+ */
+
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';

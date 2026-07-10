@@ -1,3 +1,14 @@
+/**
+ * -----------------------------------------------------------------------------
+ * ZALO AUTO MESSENGER - PREMIUM NEO-BRUTALISM STYLESHEET
+ * -----------------------------------------------------------------------------
+ * @version 2.5.0
+ * @author Dong Bui
+ * @copyright (c) 2026 Dong Bui. All rights reserved.
+ * @contact Hotline/Zalo: 0779356619 | Email: buinamdong9@gmail.com
+ * -----------------------------------------------------------------------------
+ */
+
 /* ==========================================
    DESIGN SYSTEM - PREMIUM NEO-BRUTALISM (QUIZ.COM STYLE)
    ========================================== */
@@ -1092,4 +1103,223 @@ input:checked + .slider:before {
 
 .searchable-select-item.no-results:hover {
   background: transparent;
+}
+
+/* ==========================================
+   MOBILE & RESPONSIVE LAYOUT OPTIMIZATION
+   ========================================== */
+
+/* Layout Helpers */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mobile-menu-toggle {
+  display: none; /* Hidden on desktop */
+}
+
+/* Sidebar Overlay */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 16, 38, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 998;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: auto;
+}
+
+.sidebar-overlay.open {
+  opacity: 1;
+}
+
+/* Responsive Rules for Mobile & Tablet */
+@media (max-width: 768px) {
+  .mobile-menu-toggle {
+    display: inline-flex;
+    padding: 8px 12px;
+    height: 36px;
+    width: 36px;
+    font-size: 14px;
+    box-shadow: 2px 2px 0px var(--panel-border);
+  }
+  .mobile-menu-toggle:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0px var(--panel-border);
+  }
+  .mobile-menu-toggle:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px var(--panel-border);
+  }
+
+  .dashboard-wrapper {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  /* Sidebar sliding drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 260px;
+    height: 100vh;
+    z-index: 999;
+    border-radius: 0;
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+    box-shadow: 10px 0px 30px rgba(15, 15, 27, 0.25);
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .content-area {
+    width: 100%;
+    gap: 12px;
+  }
+
+  .content-header {
+    padding: 12px 16px;
+  }
+
+  .tab-pane {
+    padding: 8px 12px 16px 12px;
+    gap: 12px;
+  }
+
+  /* Grids & Cards optimization */
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .instructions-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Forms element layout */
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .form-row .col-6 {
+    width: 100%;
+  }
+
+  /* Modals auto-centering & scroll rules */
+  .modal-wrapper {
+    overflow-y: auto;
+    align-items: flex-start;
+    padding: 20px 10px;
+  }
+
+  .modal-content {
+    max-width: 95%;
+    padding: 20px 16px;
+    margin: auto 0;
+  }
+
+  .modal-footer {
+    margin-top: 16px;
+    padding-top: 12px;
+  }
+
+  /* Table density reduction */
+  .data-table th, .data-table td {
+    padding: 10px 12px;
+  }
+
+  /* Checkbox layout tweak */
+  .days-checkboxes {
+    gap: 8px;
+  }
+
+  .checkbox-container {
+    font-size: 12px;
+    padding-left: 24px;
+    height: 20px;
+  }
+
+  .checkmark {
+    height: 18px;
+    width: 18px;
+  }
+
+  .checkbox-container .checkmark:after {
+    left: 5px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+  }
+
+  /* Centered bottom Toast message */
+  #toast-container {
+    right: 50%;
+    transform: translateX(50%);
+    bottom: 16px;
+    width: 90%;
+    max-width: 320px;
+  }
+
+  .toast {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Connection Indicator - save header space */
+  #connection-status-text {
+    display: none;
+  }
+
+  .system-status-indicator {
+    padding: 8px;
+    border-radius: 50%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .system-status-indicator .dot {
+    margin: 0;
+  }
+
+  /* Title sizing adjustment */
+  .content-header h2 {
+    font-size: 18px;
+  }
+
+  .card-header h3 {
+    font-size: 15px;
+  }
+
+  .welcome-text h2 {
+    font-size: 18px;
+  }
+
+  .welcome-card {
+    padding: 20px;
+  }
+
+  .auth-card {
+    padding: 30px 20px;
+  }
 }

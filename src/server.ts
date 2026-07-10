@@ -1,3 +1,15 @@
+/**
+ * -----------------------------------------------------------------------------
+ * ZALO AUTO MESSENGER - EXPRESS API SERVICE SERVER
+ * -----------------------------------------------------------------------------
+ * @version 2.5.0
+ * @author Dong Bui
+ * @copyright (c) 2026 Dong Bui. All rights reserved.
+ * @contact Hotline/Zalo: 0779356619 | Email: buinamdong9@gmail.com
+ * @license Proprietary - Closed Source
+ * -----------------------------------------------------------------------------
+ */
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import path from 'path';

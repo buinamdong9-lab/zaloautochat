@@ -1,3 +1,15 @@
+/**
+ * -----------------------------------------------------------------------------
+ * ZALO AUTO MESSENGER - ZALO INTEGRATION SERVICE ENGINE
+ * -----------------------------------------------------------------------------
+ * @version 2.5.0
+ * @author Dong Bui
+ * @copyright (c) 2026 Dong Bui. All rights reserved.
+ * @contact Hotline/Zalo: 0779356619 | Email: buinamdong9@gmail.com
+ * @license Proprietary - Closed Source
+ * -----------------------------------------------------------------------------
+ */
+
 import { Zalo, ZaloAPI, ThreadType } from 'zca-js';
 import { decrypt } from '../utils/crypto';
 import db from '../config/db';
