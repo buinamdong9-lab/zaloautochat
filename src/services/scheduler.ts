@@ -132,7 +132,7 @@ export class SchedulerService {
     const dayMap: Record<string, string> = {
       sun: '0', mon: '1', tue: '2', wed: '3', thu: '4', fri: '5', sat: '6'
     };
-    
+
     const cronDays = send_days
       ? send_days.split(',').map((d: string) => dayMap[d.trim().toLowerCase()] || '*').join(',')
       : '*';
@@ -346,7 +346,7 @@ export class SchedulerService {
    */
   public static initProxyChecker() {
     console.log('⏰ Initializing background proxy health checker...');
-    
+
     // Run immediately on startup in background
     setTimeout(() => this.checkAllProxies(), 5000);
 
