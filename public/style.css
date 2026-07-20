@@ -862,6 +862,92 @@ input:checked + .slider:before {
   padding-top: 16px;
 }
 
+.schedule-modal-content {
+  max-width: min(980px, calc(100vw - 48px));
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 22px 28px 20px;
+}
+.schedule-modal-content .modal-header {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+}
+.schedule-form-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: 18px;
+  row-gap: 12px;
+}
+.schedule-form-grid .form-group {
+  margin-bottom: 0;
+}
+.schedule-form-grid .form-group label {
+  margin-bottom: 6px;
+}
+.schedule-form-grid input,
+.schedule-form-grid select,
+.schedule-form-grid textarea {
+  padding: 10px 14px;
+  min-height: 48px;
+}
+.schedule-form-grid textarea {
+  resize: vertical;
+}
+.schedule-form-grid .input-help {
+  margin-top: 5px;
+  line-height: 1.3;
+}
+.span-2 { grid-column: span 2; }
+.span-3 { grid-column: span 3; }
+.span-4 { grid-column: span 4; }
+.span-5 { grid-column: span 5; }
+.span-8 { grid-column: span 8; }
+.span-full { grid-column: 1 / -1; }
+.schedule-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 18px;
+}
+.recipient-picker-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+.recipient-picker-row > select,
+.recipient-picker-row > input {
+  min-width: 0;
+}
+.recipient-picker-row .btn {
+  min-height: 48px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+.schedule-form-grid .days-checkboxes {
+  min-height: 48px;
+  align-items: center;
+  gap: 8px 12px;
+}
+.schedule-form-grid .modal-footer {
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+@media (max-width: 1100px) {
+  .schedule-modal-content {
+    max-width: min(860px, calc(100vw - 32px));
+  }
+  .span-2,
+  .span-3,
+  .span-4 {
+    grid-column: span 4;
+  }
+  .span-5,
+  .span-8 {
+    grid-column: span 8;
+  }
+}
+
 /* Day Checkboxes */
 .days-checkboxes {
   display: flex;
@@ -1238,6 +1324,36 @@ input:checked + .slider:before {
   .modal-footer {
     margin-top: 16px;
     padding-top: 12px;
+  }
+
+  .schedule-modal-content {
+    max-width: 95%;
+    max-height: none;
+    padding: 20px 16px;
+  }
+
+  .schedule-form-grid {
+    grid-template-columns: 1fr;
+    row-gap: 12px;
+  }
+
+  .schedule-form-grid > *,
+  .span-2,
+  .span-3,
+  .span-4,
+  .span-5,
+  .span-8,
+  .span-full {
+    grid-column: 1 / -1;
+  }
+
+  .schedule-inline-grid,
+  .recipient-picker-row {
+    grid-template-columns: 1fr;
+  }
+
+  .recipient-picker-row .btn {
+    width: 100%;
   }
 
   /* Table density reduction */

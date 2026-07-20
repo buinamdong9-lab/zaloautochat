@@ -292,6 +292,26 @@
                     <i class="fa-solid fa-paper-plane"></i> Gửi thử ngay
                   </button>
                 </form>
+
+                <form id="test-poll-form" style="margin-top: 20px; border-top: 2px dashed rgba(15, 15, 27, 0.15); padding-top: 16px;">
+                  <div class="form-group">
+                    <label for="test-poll-id"><i class="fa-solid fa-square-poll-vertical"></i> Test tham gia bình chọn</label>
+                    <input type="text" id="test-poll-id" placeholder="Poll ID (tùy chọn, để trống để tự tìm poll mới nhất)">
+                    <span class="input-help">Dùng nhóm đang chọn ở mục trên. Nếu poll thay đổi hằng ngày, để trống Poll ID.</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="test-poll-question-filter">Lọc tiêu đề poll</label>
+                    <input type="text" id="test-poll-question-filter" placeholder="Để trống để tự tìm bình chọn mới nhất">
+                    <span class="input-help">Chỉ nhập khi cần giới hạn theo tiêu đề, ví dụ: `Báo cáo ngày`.</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="test-poll-option">Lựa chọn cần bình chọn</label>
+                    <input type="text" id="test-poll-option" value="An toàn" placeholder="Ví dụ: An toàn, an toan, at..." required>
+                  </div>
+                  <button type="submit" id="test-poll-btn" class="btn btn-secondary btn-block">
+                    <i class="fa-solid fa-square-poll-vertical"></i> Bình chọn thử ngay
+                  </button>
+                </form>
                 
                 <div style="margin-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 16px;">
                   <label style="display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 10px;">
@@ -491,31 +511,57 @@
 
   <!-- ADD/EDIT SCHEDULE MODAL -->
   <div id="schedule-modal" class="modal-wrapper hidden">
-    <div class="modal-content glass">
+    <div class="modal-content glass schedule-modal-content">
       <div class="modal-header">
         <h3 id="modal-title">Tạo lịch gửi tin mới</h3>
         <button class="close-btn" onclick="closeScheduleModal()">&times;</button>
       </div>
-      <form id="schedule-form">
+      <form id="schedule-form" class="schedule-form-grid">
         <input type="hidden" id="schedule-id">
+
+        <div class="form-group span-4">
+          <label for="sched-action-type"><i class="fa-solid fa-bolt"></i> Hành động tự động</label>
+          <select id="sched-action-type">
+            <option value="send_message">Gửi tin nhắn</option>
+            <option value="vote_poll">Tham gia bình chọn</option>
+          </select>
+        </div>
         
-        <div class="form-group">
+        <div class="form-group span-8" id="sched-message-group">
           <label for="sched-message"><i class="fa-solid fa-comment-dots"></i> Nội dung tin nhắn</label>
-          <textarea id="sched-message" rows="3" placeholder="Nhập nội dung gửi..." required></textarea>
+          <textarea id="sched-message" rows="2" placeholder="Nhập nội dung gửi..." required></textarea>
+        </div>
+
+        <div id="sched-poll-fields" class="hidden span-8">
+          <div class="schedule-inline-grid">
+            <div class="form-group">
+              <label for="sched-poll-id"><i class="fa-solid fa-hashtag"></i> Poll ID (Tùy chọn)</label>
+              <input type="text" id="sched-poll-id" placeholder="Để trống để tự tìm poll mới nhất">
+              <span class="input-help">Nếu cuộc bình chọn thay đổi hằng ngày, nên để trống.</span>
+            </div>
+            <div class="form-group">
+              <label for="sched-poll-question-filter"><i class="fa-solid fa-filter"></i> Lọc tiêu đề poll</label>
+              <input type="text" id="sched-poll-question-filter" placeholder="Để trống để tự tìm bình chọn mới nhất">
+              <span class="input-help">Nếu để trống, bot lấy poll đang mở mới nhất trong nhóm. Chỉ nhập khi cần lọc theo tiêu đề.</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="sched-poll-option"><i class="fa-solid fa-square-poll-vertical"></i> Lựa chọn cần bình chọn</label>
+            <input type="text" id="sched-poll-option" value="An toàn" placeholder="Ví dụ: An toàn hoặc nhập option ID">
+            <span class="input-help">Có thể nhập tên lựa chọn như `An toàn`; nhiều lựa chọn thì ngăn cách bằng dấu phẩy.</span>
+          </div>
         </div>
         
-        <div class="form-row">
-          <div class="form-group col-6">
-            <label for="sched-hour"><i class="fa-solid fa-clock"></i> Giờ gửi (Hour)</label>
-            <input type="number" id="sched-hour" min="0" max="23" value="7" required>
-          </div>
-          <div class="form-group col-6">
-            <label for="sched-minute"><i class="fa-solid fa-clock"></i> Phút gửi (Minute)</label>
-            <input type="number" id="sched-minute" min="0" max="59" value="0" required>
-          </div>
+        <div class="form-group span-2">
+          <label for="sched-hour"><i class="fa-solid fa-clock"></i> Giờ gửi</label>
+          <input type="number" id="sched-hour" min="0" max="23" value="7" required>
+        </div>
+        <div class="form-group span-2">
+          <label for="sched-minute"><i class="fa-solid fa-clock"></i> Phút gửi</label>
+          <input type="number" id="sched-minute" min="0" max="59" value="0" required>
         </div>
         
-        <div class="form-group">
+        <div class="form-group span-8">
           <label><i class="fa-solid fa-calendar-week"></i> Các ngày trong tuần</label>
           <div class="days-checkboxes">
             <label class="checkbox-container">T2 <input type="checkbox" name="sched-days" value="mon" checked><span class="checkmark"></span></label>
@@ -528,38 +574,34 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-group col-6">
-            <label for="sched-recipient-type">Loại người nhận</label>
-            <select id="sched-recipient-type">
-              <option value="GROUP">Nhóm chat (Group)</option>
-              <option value="USER">Cá nhân (User)</option>
-            </select>
-          </div>
-          <div class="form-group col-6">
-            <label for="sched-recipient-id">Chọn người nhận</label>
-            <div style="display: flex; gap: 8px;">
-              <select id="sched-recipient-select" style="flex: 1;"></select>
-              <input type="text" id="sched-recipient-id-manual" class="hidden" placeholder="Nhập ID thủ công...">
-              <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-sched-recipient" onclick="toggleSchedRecipientMode()" style="padding: 0 12px; white-space: nowrap;">
-                <i class="fa-solid fa-keyboard"></i> Nhập tay
-              </button>
-            </div>
+        <div class="form-group span-3">
+          <label for="sched-recipient-type">Loại người nhận</label>
+          <select id="sched-recipient-type">
+            <option value="GROUP">Nhóm chat (Group)</option>
+            <option value="USER">Cá nhân (User)</option>
+          </select>
+        </div>
+        <div class="form-group span-5">
+          <label for="sched-recipient-id">Chọn người nhận</label>
+          <div class="recipient-picker-row">
+            <select id="sched-recipient-select"></select>
+            <input type="text" id="sched-recipient-id-manual" class="hidden" placeholder="Nhập ID thủ công...">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-sched-recipient" onclick="toggleSchedRecipientMode()">
+              <i class="fa-solid fa-keyboard"></i> Nhập tay
+            </button>
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-group col-6">
-            <label for="sched-start-date">Ngày bắt đầu (Tùy chọn)</label>
-            <input type="date" id="sched-start-date">
-          </div>
-          <div class="form-group col-6">
-            <label for="sched-end-date">Ngày kết thúc (Tùy chọn)</label>
-            <input type="date" id="sched-end-date">
-          </div>
+        <div class="form-group span-4">
+          <label for="sched-start-date">Ngày bắt đầu (Tùy chọn)</label>
+          <input type="date" id="sched-start-date">
+        </div>
+        <div class="form-group span-4">
+          <label for="sched-end-date">Ngày kết thúc (Tùy chọn)</label>
+          <input type="date" id="sched-end-date">
         </div>
 
-        <div class="modal-footer">
+        <div class="modal-footer span-full">
           <button type="button" class="btn btn-secondary" onclick="closeScheduleModal()">Hủy bỏ</button>
           <button type="submit" class="btn btn-primary">Lưu lịch trình</button>
         </div>

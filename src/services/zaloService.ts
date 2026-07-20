@@ -19,6 +19,47 @@ const { SocksProxyAgent } = require('socks-proxy-agent');
 export class ZaloService {
   private static clients: Map<number, ZaloAPI> = new Map();
 
+  private static normalizePollText(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  private static compactPollText(value: string): string {
+    return this.normalizePollText(value).replace(/[^a-z0-9]/g, '');
+  }
+
+  private static pollTextInitials(value: string): string {
+    const words = this.normalizePollText(value)
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean);
+
+    if (words.length <= 1) return this.compactPollText(value);
+    return words.map(word => word[0]).join('');
+  }
+
+  private static levenshteinDistance(left: string, right: string): number {
+    const dp = Array.from({ length: left.length + 1 }, () => new Array<number>(right.length + 1).fill(0));
+
+    for (let i = 0; i <= left.length; i++) dp[i][0] = i;
+    for (let j = 0; j <= right.length; j++) dp[0][j] = j;
+
+    for (let i = 1; i <= left.length; i++) {
+      for (let j = 1; j <= right.length; j++) {
+        const cost = left[i - 1] === right[j - 1] ? 0 : 1;
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + cost
+        );
+      }
+    }
+
+    return dp[left.length][right.length];
+  }
+
   /**
    * Get or create a Zalo API client for a user
    */
@@ -166,6 +207,143 @@ export class ZaloService {
         throw new Error((retryErr as Error).message);
       }
     }
+  }
+
+  /**
+   * Vote on a Zalo group poll. If pollId is not supplied, the newest matching
+   * open poll is discovered from the group's board list.
+   */
+  public static async votePollAttendance(
+    userId: number,
+    groupId: string,
+    pollOption: string,
+    pollId?: string | number | null,
+    questionFilter?: string | null
+  ): Promise<any> {
+    const api = await this.getClient(userId);
+    const pollApi = api as any;
+
+    if (typeof pollApi.votePoll !== 'function') {
+      throw new Error('Current zca-js client does not expose votePoll().');
+    }
+
+    const pollIdNumber = await this.resolvePollId(pollApi, groupId, pollId, questionFilter);
+    const pollDetail = await this.getPollDetailForVote(pollApi, pollIdNumber);
+
+    if (pollDetail?.closed) {
+      throw new Error(`Poll ${pollIdNumber} is already closed.`);
+    }
+
+    const optionIds = this.resolvePollOptionIds(pollDetail, pollOption);
+    console.log(`Voting poll ${pollIdNumber} with option(s) ${optionIds.join(', ')} for user ${userId}...`);
+    return await pollApi.votePoll(pollIdNumber, optionIds);
+  }
+
+  private static async resolvePollId(
+    api: any,
+    groupId: string,
+    pollId?: string | number | null,
+    questionFilter?: string | null
+  ): Promise<number> {
+    if (pollId !== undefined && pollId !== null && String(pollId).trim()) {
+      const parsed = Number(String(pollId).trim());
+      if (!Number.isFinite(parsed)) {
+        throw new Error(`Invalid poll ID: ${pollId}`);
+      }
+      return parsed;
+    }
+
+    if (typeof api.getListBoard !== 'function') {
+      throw new Error('Missing poll_id and current zca-js client does not expose getListBoard().');
+    }
+
+    const boards = await api.getListBoard({ page: 1, count: 20 }, groupId);
+    const items = Array.isArray(boards?.items) ? boards.items : [];
+    const normalizedFilter = questionFilter ? this.normalizePollText(questionFilter) : '';
+
+    const matchingPoll = items
+      .map((item: any) => item?.data)
+      .filter((poll: any) => poll && poll.poll_id && Array.isArray(poll.options))
+      .filter((poll: any) => !poll.closed)
+      .find((poll: any) => {
+        if (!normalizedFilter) return true;
+        return this.normalizePollText(String(poll.question || '')).includes(normalizedFilter);
+      });
+
+    if (!matchingPoll) {
+      const suffix = questionFilter ? ` matching "${questionFilter}"` : '';
+      throw new Error(`No open group poll${suffix} was found in group ${groupId}.`);
+    }
+
+    return Number(matchingPoll.poll_id);
+  }
+
+  private static async getPollDetailForVote(api: any, pollId: number): Promise<any> {
+    if (typeof api.getPollDetail === 'function') {
+      return await api.getPollDetail(pollId);
+    }
+    return { poll_id: pollId, options: [] };
+  }
+
+  private static resolvePollOptionIds(pollDetail: any, pollOption: string): number[] {
+    const rawOptions = pollOption
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+
+    if (rawOptions.length === 0) {
+      throw new Error('Poll option is required.');
+    }
+
+    const pollOptions = Array.isArray(pollDetail?.options) ? pollDetail.options : [];
+    const resolvedIds = rawOptions.map(rawOption => {
+      const numericOptionId = Number(rawOption);
+      if (Number.isFinite(numericOptionId)) return numericOptionId;
+
+      const normalizedTarget = this.normalizePollText(rawOption);
+      const exact = pollOptions.find((option: any) => this.normalizePollText(String(option.content || '')) === normalizedTarget);
+      if (exact) return Number(exact.option_id);
+
+      const partial = pollOptions.find((option: any) => this.normalizePollText(String(option.content || '')).includes(normalizedTarget));
+      if (partial) return Number(partial.option_id);
+
+      const compactTarget = this.compactPollText(rawOption);
+      const targetInitials = this.pollTextInitials(rawOption);
+      const abbreviation = pollOptions.find((option: any) => {
+        const content = String(option.content || '');
+        const compactContent = this.compactPollText(content);
+        const contentInitials = this.pollTextInitials(content);
+        return compactContent === targetInitials || contentInitials === compactTarget || contentInitials === targetInitials;
+      });
+      if (abbreviation) return Number(abbreviation.option_id);
+
+      const fuzzyMatches = pollOptions
+        .map((option: any) => ({
+          option,
+          compactContent: this.compactPollText(String(option.content || ''))
+        }))
+        .map(({ option, compactContent }: any) => ({
+          option,
+          distance: this.levenshteinDistance(compactTarget, compactContent),
+          maxLength: Math.max(compactTarget.length, compactContent.length)
+        }))
+        .filter(({ distance, maxLength }: any) => maxLength >= 4 && distance <= Math.max(1, Math.floor(maxLength * 0.25)))
+        .sort((a: any, b: any) => a.distance - b.distance);
+
+      if (fuzzyMatches.length === 1 || (fuzzyMatches.length > 1 && fuzzyMatches[0].distance < fuzzyMatches[1].distance)) {
+        return Number(fuzzyMatches[0].option.option_id);
+      }
+
+      if (fuzzyMatches.length > 1) {
+        const ambiguous = fuzzyMatches.map((match: any) => match.option.content).join(', ');
+        throw new Error(`Poll option "${rawOption}" is ambiguous. Close matches: ${ambiguous}`);
+      }
+
+      const available = pollOptions.map((option: any) => option.content).filter(Boolean).join(', ');
+      throw new Error(`Poll option "${rawOption}" was not found. Available options: ${available || 'unknown'}`);
+    });
+
+    return Array.from(new Set(resolvedIds));
   }
 
   /**

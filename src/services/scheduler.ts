@@ -2,24 +2,62 @@ import cron from 'node-cron';
 import db from '../config/db';
 import { ZaloService } from './zaloService';
 import https from 'https';
+import fs from 'fs';
+import path from 'path';
 const { HttpsProxyAgent } = require('https-proxy-agent');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 
 export class SchedulerService {
   // Map of scheduleId -> cron task
   private static activeJobs: Map<number, cron.ScheduledTask> = new Map();
+  private static logDir = path.resolve(__dirname, '../../data');
+  private static systemLogPath = path.join(SchedulerService.logDir, 'system.log');
+
+  private static getTimestamp(): string {
+    return new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+  }
+
+  private static ensureSystemLogFile() {
+    try {
+      if (!fs.existsSync(this.logDir)) {
+        fs.mkdirSync(this.logDir, { recursive: true });
+      }
+      if (!fs.existsSync(this.systemLogPath)) {
+        fs.writeFileSync(this.systemLogPath, '', 'utf8');
+      }
+    } catch (err) {
+      console.error('Failed to initialize system log file:', err);
+    }
+  }
+
+  private static appendSystemLog(line: string) {
+    try {
+      this.ensureSystemLogFile();
+      fs.appendFileSync(this.systemLogPath, line + '\n', 'utf8');
+    } catch (err) {
+      console.error('Failed to write system log file:', err);
+    }
+  }
+
+  public static logSystem(level: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL', message: string) {
+    const line = `[${this.getTimestamp()}][SYSTEM][${level}] ${message}`;
+    console.log(`[SYSTEM][${level}] ${message}`);
+    this.appendSystemLog(line);
+  }
 
   /**
-   * Write logs directly to SQLite database
+   * Write logs to SQLite database and data/system.log
    */
   public static log(userId: number, level: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL', message: string) {
-    const time = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }); // YYYY-MM-DD HH:mm:ss format
+    const time = this.getTimestamp(); // YYYY-MM-DD HH:mm:ss format
+    const line = `[${time}][User ${userId}][${level}] ${message}`;
     try {
       db.prepare('INSERT INTO logs (user_id, time, level, message) VALUES (?, ?, ?, ?)').run(userId, time, level, message);
       console.log(`[User ${userId}][${level}] ${message}`);
     } catch (err) {
       console.error('Failed to write log to DB:', err);
     }
+    this.appendSystemLog(line);
   }
 
   /**
@@ -47,17 +85,18 @@ export class SchedulerService {
    * Load and schedule all active jobs from database
    */
   public static initSchedules() {
-    console.log('⏰ Initializing active schedules...');
+    this.ensureSystemLogFile();
+    this.logSystem('INFO', 'Initializing active schedules...');
     const activeSchedules = db.prepare('SELECT * FROM schedules WHERE is_active = 1').all() as any[];
 
     for (const schedule of activeSchedules) {
       try {
         this.scheduleJob(schedule);
       } catch (err) {
-        console.error(`Failed to schedule job ${schedule.id}:`, err);
+        this.logSystem('ERROR', `Failed to schedule job ${schedule.id}: ${(err as Error).message}`);
       }
     }
-    console.log(`⏰ Loaded ${this.activeJobs.size} active schedules.`);
+    this.logSystem('INFO', `Loaded ${this.activeJobs.size} active schedules.`);
   }
 
   /**
@@ -67,7 +106,22 @@ export class SchedulerService {
     // If job already exists, stop it first
     this.stopJob(schedule.id);
 
-    const { id, user_id, message_content, send_hour, send_minute, send_days, start_date, end_date, recipient_type, recipient_id } = schedule;
+    const {
+      id,
+      user_id,
+      message_content,
+      action_type,
+      poll_id,
+      poll_question_filter,
+      poll_option,
+      send_hour,
+      send_minute,
+      send_days,
+      start_date,
+      end_date,
+      recipient_type,
+      recipient_id
+    } = schedule;
 
     // Convert send_days: "mon,tue,wed" to cron numbers "1,2,3"
     // node-cron dayOfWeek: 0-6 (0 is Sunday, or name like Sunday, Monday)
@@ -104,13 +158,24 @@ export class SchedulerService {
 
         this.log(user_id, 'INFO', `Triggered scheduler job ${id} for recipient ${recipient_id}`);
         try {
-          await ZaloService.sendMessage(user_id, recipient_id, recipient_type, message_content);
-          this.log(user_id, 'INFO', `✅ Successfully sent message for schedule ${id}`);
-          this.addHistory(user_id, id, 'success', message_content, recipient_id);
+          if ((action_type || 'send_message') === 'vote_poll') {
+            await ZaloService.votePollAttendance(user_id, recipient_id, poll_option, poll_id, poll_question_filter);
+            const detail = `Vote poll "${poll_option}"${poll_question_filter ? ` (${poll_question_filter})` : ''}`;
+            this.log(user_id, 'INFO', `✅ Successfully voted poll for schedule ${id}`);
+            this.addHistory(user_id, id, 'success', detail, recipient_id);
+          } else {
+            await ZaloService.sendMessage(user_id, recipient_id, recipient_type, message_content);
+            this.log(user_id, 'INFO', `✅ Successfully sent message for schedule ${id}`);
+            this.addHistory(user_id, id, 'success', message_content, recipient_id);
+          }
         } catch (err) {
           const errMsg = (err as Error).message;
-          this.log(user_id, 'ERROR', `❌ Failed to send message for schedule ${id}: ${errMsg}`);
-          this.addHistory(user_id, id, 'error', message_content, recipient_id, errMsg);
+          const actionLabel = (action_type || 'send_message') === 'vote_poll' ? 'vote poll' : 'send message';
+          const historyMessage = (action_type || 'send_message') === 'vote_poll'
+            ? `Vote poll "${poll_option || ''}"`
+            : message_content;
+          this.log(user_id, 'ERROR', `❌ Failed to ${actionLabel} for schedule ${id}: ${errMsg}`);
+          this.addHistory(user_id, id, 'error', historyMessage, recipient_id, errMsg);
         }
       },
       {

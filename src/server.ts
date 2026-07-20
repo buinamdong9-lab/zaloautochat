@@ -251,17 +251,54 @@ app.get('/api/schedules', authenticateToken, (req: AuthenticatedRequest, res: Re
 
 app.post('/api/schedules', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
-  const { message_content, send_hour, send_minute, send_days, start_date, end_date, recipient_type, recipient_id } = req.body;
+  const {
+    message_content,
+    action_type,
+    poll_id,
+    poll_question_filter,
+    poll_option,
+    send_hour,
+    send_minute,
+    send_days,
+    start_date,
+    end_date,
+    recipient_type,
+    recipient_id
+  } = req.body;
+  const cleanActionType = action_type === 'vote_poll' ? 'vote_poll' : 'send_message';
 
-  if (!message_content || send_hour === undefined || send_minute === undefined || !send_days || !recipient_id) {
+  if (send_hour === undefined || send_minute === undefined || !send_days || !recipient_id) {
     return res.status(400).json({ success: false, message: 'Missing required schedule fields' });
+  }
+  if (cleanActionType === 'send_message' && !message_content) {
+    return res.status(400).json({ success: false, message: 'Message content is required' });
+  }
+  if (cleanActionType === 'vote_poll' && !poll_option) {
+    return res.status(400).json({ success: false, message: 'Poll option is required' });
   }
 
   try {
     const result = db.prepare(`
-      INSERT INTO schedules (user_id, message_content, send_hour, send_minute, send_days, start_date, end_date, recipient_type, recipient_id, is_active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-    `).run(userId, message_content, send_hour, send_minute, send_days, start_date || null, end_date || null, recipient_type || 'GROUP', recipient_id);
+      INSERT INTO schedules (
+        user_id, message_content, action_type, poll_id, poll_question_filter, poll_option,
+        send_hour, send_minute, send_days, start_date, end_date, recipient_type, recipient_id, is_active
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).run(
+      userId,
+      message_content || '',
+      cleanActionType,
+      poll_id ? String(poll_id).trim() : null,
+      poll_question_filter ? String(poll_question_filter).trim() : null,
+      poll_option ? String(poll_option).trim() : null,
+      send_hour,
+      send_minute,
+      send_days,
+      start_date || null,
+      end_date || null,
+      recipient_type || 'GROUP',
+      recipient_id
+    );
 
     const newScheduleId = result.lastInsertRowid as number;
     
@@ -278,16 +315,45 @@ app.post('/api/schedules', authenticateToken, (req: AuthenticatedRequest, res: R
 app.put('/api/schedules/:id', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   const scheduleId = parseInt(req.params.id);
-  const { message_content, send_hour, send_minute, send_days, start_date, end_date, recipient_type, recipient_id, is_active } = req.body;
+  const {
+    message_content,
+    action_type,
+    poll_id,
+    poll_question_filter,
+    poll_option,
+    send_hour,
+    send_minute,
+    send_days,
+    start_date,
+    end_date,
+    recipient_type,
+    recipient_id,
+    is_active
+  } = req.body;
+  const cleanActionType = action_type === 'vote_poll' ? 'vote_poll' : action_type === 'send_message' ? 'send_message' : undefined;
 
   try {
     // Check ownership
     const schedule = db.prepare('SELECT * FROM schedules WHERE id = ? AND user_id = ?').get(scheduleId, userId) as any;
     if (!schedule) return res.status(404).json({ success: false, message: 'Schedule not found' });
+    const nextActionType = cleanActionType || schedule.action_type || 'send_message';
+    const nextPollOption = poll_option !== undefined ? String(poll_option).trim() : schedule.poll_option;
+    const nextMessageContent = message_content !== undefined ? message_content : schedule.message_content;
+
+    if (nextActionType === 'vote_poll' && !nextPollOption && is_active === undefined) {
+      return res.status(400).json({ success: false, message: 'Poll option is required' });
+    }
+    if (nextActionType === 'send_message' && !nextMessageContent && is_active === undefined) {
+      return res.status(400).json({ success: false, message: 'Message content is required' });
+    }
 
     db.prepare(`
       UPDATE schedules
       SET message_content = COALESCE(?, message_content),
+          action_type = COALESCE(?, action_type),
+          poll_id = ?,
+          poll_question_filter = ?,
+          poll_option = ?,
           send_hour = COALESCE(?, send_hour),
           send_minute = COALESCE(?, send_minute),
           send_days = COALESCE(?, send_days),
@@ -299,6 +365,10 @@ app.put('/api/schedules/:id', authenticateToken, (req: AuthenticatedRequest, res
       WHERE id = ?
     `).run(
       message_content,
+      cleanActionType,
+      poll_id !== undefined ? (poll_id ? String(poll_id).trim() : null) : schedule.poll_id,
+      poll_question_filter !== undefined ? (poll_question_filter ? String(poll_question_filter).trim() : null) : schedule.poll_question_filter,
+      poll_option !== undefined ? (poll_option ? String(poll_option).trim() : null) : schedule.poll_option,
       send_hour,
       send_minute,
       send_days,
@@ -357,6 +427,29 @@ app.post('/api/zalo/test-send', authenticateToken, async (req: AuthenticatedRequ
     const errMsg = (err as Error).message;
     SchedulerService.log(userId, 'ERROR', `❌ Manual test-send failed: ${errMsg}`);
     SchedulerService.addHistory(userId, 0, 'error', message, recipientId, errMsg);
+    return res.status(500).json({ success: false, message: errMsg });
+  }
+});
+
+app.post('/api/zalo/test-poll-vote', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  const { groupId, pollId, questionFilter, pollOption } = req.body;
+
+  if (!groupId || !pollOption) {
+    return res.status(400).json({ success: false, message: 'Group ID and poll option are required' });
+  }
+
+  try {
+    const historyMessage = `Test vote poll "${pollOption}"${questionFilter ? ` (${questionFilter})` : ''}`;
+    SchedulerService.log(userId, 'INFO', `Triggered manual poll vote in group '${groupId}' with option '${pollOption}'`);
+    await ZaloService.votePollAttendance(userId, groupId, pollOption, pollId, questionFilter);
+    SchedulerService.log(userId, 'INFO', `✅ Manual poll vote success in group '${groupId}'`);
+    SchedulerService.addHistory(userId, 0, 'success', historyMessage, groupId);
+    return res.json({ success: true, message: 'Poll voted successfully!' });
+  } catch (err) {
+    const errMsg = (err as Error).message;
+    SchedulerService.log(userId, 'ERROR', `❌ Manual poll vote failed: ${errMsg}`);
+    SchedulerService.addHistory(userId, 0, 'error', `Test vote poll "${pollOption}"`, groupId, errMsg);
     return res.status(500).json({ success: false, message: errMsg });
   }
 });
@@ -475,6 +568,10 @@ app.get('/api/status', authenticateToken, (req: AuthenticatedRequest, res: Respo
 app.post('/api/zalo/qr/init', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   try {
+    const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found. Please log in again.' });
+    }
     QRManager.startQRLogin(userId);
     return res.json({ success: true, message: 'Zalo QR login flow initialized successfully.' });
   } catch (err) {
@@ -776,6 +873,7 @@ app.get('*', (req, res) => {
 // Start Server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  SchedulerService.logSystem('INFO', `Server running on http://localhost:${PORT}`);
   
   // Initialize user schedules on startup
   SchedulerService.initSchedules();

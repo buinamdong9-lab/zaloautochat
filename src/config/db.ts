@@ -50,12 +50,36 @@ try {
 } catch (e) {
   // Column already exists, ignore
 }
+try {
+  db.exec("ALTER TABLE schedules ADD COLUMN action_type TEXT DEFAULT 'send_message'");
+} catch (e) {
+  // Column already exists, ignore
+}
+try {
+  db.exec('ALTER TABLE schedules ADD COLUMN poll_id TEXT');
+} catch (e) {
+  // Column already exists, ignore
+}
+try {
+  db.exec('ALTER TABLE schedules ADD COLUMN poll_question_filter TEXT');
+} catch (e) {
+  // Column already exists, ignore
+}
+try {
+  db.exec('ALTER TABLE schedules ADD COLUMN poll_option TEXT');
+} catch (e) {
+  // Column already exists, ignore
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS schedules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     message_content TEXT NOT NULL,
+    action_type TEXT DEFAULT 'send_message', -- 'send_message' or 'vote_poll'
+    poll_id TEXT,
+    poll_question_filter TEXT,
+    poll_option TEXT,
     send_hour INTEGER NOT NULL,
     send_minute INTEGER NOT NULL,
     send_days TEXT NOT NULL, -- e.g., 'mon,tue,wed,thu,fri'

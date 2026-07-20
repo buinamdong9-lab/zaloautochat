@@ -4,7 +4,7 @@ import { encrypt } from '../utils/crypto';
 import { ZaloService } from './zaloService';
 
 interface QRSession {
-  status: 'init' | 'generated' | 'scanned' | 'expired' | 'declined' | 'success';
+  status: 'init' | 'generated' | 'scanned' | 'expired' | 'declined' | 'success' | 'error';
   qrImage?: string;
   displayName?: string;
   avatar?: string;
@@ -57,6 +57,7 @@ export class QRManager {
           case 0: // QRCodeGenerated
             session.status = 'generated';
             session.qrImage = event.data.image; // Base64 string
+            console.log(`Zalo QR generated for user ${userId}`);
             session.abortAction = () => {
               if (event.actions && typeof event.actions.abort === 'function') {
                 event.actions.abort();
@@ -91,7 +92,7 @@ export class QRManager {
               ZaloService.logout(userId);
             } catch (err) {
               console.error('Failed to save QR login credentials to database:', err);
-              session.status = 'declined';
+              session.status = 'error';
               session.error = (err as Error).message;
             }
             break;
@@ -103,7 +104,7 @@ export class QRManager {
       })
       .catch((err: Error) => {
         console.error(`Zalo QR Login Promise rejected for user ${userId}:`, err);
-        session.status = 'declined';
+        session.status = err.name === 'ZaloApiLoginQRDeclined' ? 'declined' : 'error';
         session.error = err.message;
         resolve(); // Resolve to avoid hanging, since status checking is handled by polling
       });
