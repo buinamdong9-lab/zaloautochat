@@ -228,6 +228,9 @@ export class ZaloService {
     }
 
     const pollIdNumber = await this.resolvePollId(pollApi, groupId, pollId, questionFilter);
+    if (!pollIdNumber) {
+      throw new Error(`No open group poll was found in group ${groupId}.`);
+    }
     const pollDetail = await this.getPollDetailForVote(pollApi, pollIdNumber);
 
     if (pollDetail?.closed) {
@@ -235,16 +238,39 @@ export class ZaloService {
     }
 
     const optionIds = this.resolvePollOptionIds(pollDetail, pollOption);
+    if (this.isPollAlreadyVoted(pollDetail, optionIds)) {
+      console.log(`Poll ${pollIdNumber} already has selected option(s) ${optionIds.join(', ')} for user ${userId}. Skipping vote.`);
+      return {
+        skipped: true,
+        reason: 'already_voted',
+        pollId: pollIdNumber,
+        optionIds
+      };
+    }
+
     console.log(`Voting poll ${pollIdNumber} with option(s) ${optionIds.join(', ')} for user ${userId}...`);
     return await pollApi.votePoll(pollIdNumber, optionIds);
+  }
+
+  public static async getLatestOpenPoll(
+    userId: number,
+    groupId: string,
+    questionFilter?: string | null
+  ): Promise<any | null> {
+    const api = await this.getClient(userId);
+    const pollApi = api as any;
+    const pollId = await this.resolvePollId(pollApi, groupId, null, questionFilter, false);
+    if (!pollId) return null;
+    return await this.getPollDetailForVote(pollApi, pollId);
   }
 
   private static async resolvePollId(
     api: any,
     groupId: string,
     pollId?: string | number | null,
-    questionFilter?: string | null
-  ): Promise<number> {
+    questionFilter?: string | null,
+    throwWhenMissing = true
+  ): Promise<number | null> {
     if (pollId !== undefined && pollId !== null && String(pollId).trim()) {
       const parsed = Number(String(pollId).trim());
       if (!Number.isFinite(parsed)) {
@@ -271,6 +297,7 @@ export class ZaloService {
       });
 
     if (!matchingPoll) {
+      if (!throwWhenMissing) return null;
       const suffix = questionFilter ? ` matching "${questionFilter}"` : '';
       throw new Error(`No open group poll${suffix} was found in group ${groupId}.`);
     }
@@ -344,6 +371,20 @@ export class ZaloService {
     });
 
     return Array.from(new Set(resolvedIds));
+  }
+
+  private static isPollAlreadyVoted(pollDetail: any, optionIds: number[]): boolean {
+    const pollOptions = Array.isArray(pollDetail?.options) ? pollDetail.options : [];
+    if (pollOptions.length === 0) return false;
+
+    const votedOptionIds = pollOptions
+      .filter((option: any) => option?.voted)
+      .map((option: any) => Number(option.option_id));
+
+    if (votedOptionIds.length === 0) return false;
+
+    const targetIds = new Set(optionIds.map(Number));
+    return votedOptionIds.length === targetIds.size && votedOptionIds.every((id: number) => targetIds.has(id));
   }
 
   /**

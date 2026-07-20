@@ -2,7 +2,7 @@
  * -----------------------------------------------------------------------------
  * ZALO AUTO MESSENGER - AUTOMATIC MESSAGE SENDER FOR ZALO CHAT GROUPS
  * -----------------------------------------------------------------------------
- * @version 2.5.0
+ * @version 3.0.0
  * @author Dong Bui
  * @copyright (c) 2026 Dong Bui. All rights reserved.
  * @contact Hotline/Zalo: 09xx.xxx.xxx | Email: contact@dongbui.com
@@ -12,7 +12,7 @@
 
 // Beautiful Console Copyright Banner
 console.log(
-  '%c🤖 ZALO AUTO MESSENGER v2.5.0 %c\n\n' +
+  '%c🤖 ZALO AUTO MESSENGER v3.0.0 %c\n\n' +
   '%c© 2026 Bản quyền thuộc về Đông Bùi. All Rights Reserved.%c\n' +
   '%cMọi hành vi sao chép, chỉnh sửa trái phép đều vi phạm bản quyền.%c\n\n' +
   '%c📞 Hotline/Zalo liên hệ: %c0779356619%c\n' +
@@ -463,7 +463,7 @@ async function handleTestPollSubmit(e) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'Lỗi bình chọn thử');
 
-    showToast('Bình chọn thử thành công!');
+    showToast(data.skipped ? 'Poll đã được bình chọn lựa chọn này, bỏ qua thao tác lặp.' : 'Bình chọn thử thành công!');
     fetchHistory(5);
   } catch (err) {
     showToast(err.message, 'error');
@@ -498,9 +498,14 @@ function renderSchedules() {
   container.innerHTML = schedulesData.map(s => {
     const daysArr = s.send_days.split(',');
     const actionType = s.action_type || 'send_message';
-    const isPollAction = actionType === 'vote_poll';
+    const isPollAction = actionType === 'vote_poll' || actionType === 'watch_poll';
+    const actionLabel = actionType === 'watch_poll'
+      ? 'Canh bình chọn'
+      : actionType === 'vote_poll'
+        ? 'Tham gia bình chọn'
+        : 'Gửi tin nhắn';
     const contentLabel = isPollAction
-      ? `Bình chọn: ${escapeHtml(s.poll_option || '')}${s.poll_question_filter ? ` | Lọc: ${escapeHtml(s.poll_question_filter)}` : ''}${s.poll_id ? ` | Poll ID: ${escapeHtml(String(s.poll_id))}` : ''}`
+      ? `${actionType === 'watch_poll' ? 'Canh' : 'Bình chọn'}: ${escapeHtml(s.poll_option || '')}${s.poll_question_filter ? ` | Lọc: ${escapeHtml(s.poll_question_filter)}` : ''}${s.poll_id ? ` | Poll ID: ${escapeHtml(String(s.poll_id))}` : ''}${actionType === 'watch_poll' ? ` | Đến ${String(s.watch_end_hour ?? 8).padStart(2, '0')}:${String(s.watch_end_minute ?? 0).padStart(2, '0')}` : ''}`
       : escapeHtml(s.message_content);
     const daysLabel = daysArr.map(d => {
       const map = { mon: 'T2', tue: 'T3', wed: 'T4', thu: 'T5', fri: 'T6', sat: 'T7', sun: 'CN' };
@@ -513,7 +518,7 @@ function renderSchedules() {
           <div>
             <span class="schedule-time">${String(s.send_hour).padStart(2, '0')}:${String(s.send_minute).padStart(2, '0')}</span>
             <span class="schedule-days-badge">${daysLabel}</span>
-            <span class="schedule-days-badge">${isPollAction ? 'Bình chọn' : 'Gửi tin'}</span>
+            <span class="schedule-days-badge">${actionType === 'watch_poll' ? 'Canh poll' : isPollAction ? 'Bình chọn' : 'Gửi tin'}</span>
           </div>
           <label class="switch">
             <input type="checkbox" ${s.is_active === 1 ? 'checked' : ''} onchange="toggleScheduleActive(${s.id}, this.checked)">
@@ -522,7 +527,8 @@ function renderSchedules() {
         </div>
         <div class="schedule-msg">${contentLabel}</div>
         <div class="schedule-meta">
-          <span><i class="fa-solid ${isPollAction ? 'fa-square-poll-vertical' : 'fa-paper-plane'}"></i> Hành động: <strong>${isPollAction ? 'Tham gia bình chọn' : 'Gửi tin nhắn'}</strong></span>
+          <span><i class="fa-solid ${isPollAction ? 'fa-square-poll-vertical' : 'fa-paper-plane'}"></i> Hành động: <strong>${actionLabel}</strong></span>
+          ${actionType === 'watch_poll' ? `<span><i class="fa-solid fa-rotate"></i> Quét mỗi: <strong>${s.poll_watch_interval_seconds || 60}s</strong></span>` : ''}
           <span><i class="fa-solid fa-id-badge"></i> ID: <code>${s.recipient_id}</code></span>
           ${s.start_date ? `<span><i class="fa-solid fa-calendar-plus"></i> Từ ngày: ${s.start_date}</span>` : ''}
           ${s.end_date ? `<span><i class="fa-solid fa-calendar-minus"></i> Đến ngày: ${s.end_date}</span>` : ''}
@@ -588,6 +594,9 @@ function openAddScheduleModal() {
   document.getElementById('sched-poll-option').value = 'An toàn';
   document.getElementById('sched-hour').value = 7;
   document.getElementById('sched-minute').value = 0;
+  document.getElementById('sched-watch-end-hour').value = 8;
+  document.getElementById('sched-watch-end-minute').value = 0;
+  document.getElementById('sched-watch-interval').value = 60;
   document.getElementById('sched-recipient-type').value = 'GROUP';
   updateScheduleActionFields();
 
@@ -630,6 +639,9 @@ function openEditScheduleModal(id) {
   document.getElementById('sched-poll-option').value = s.poll_option || 'An toàn';
   document.getElementById('sched-hour').value = s.send_hour;
   document.getElementById('sched-minute').value = s.send_minute;
+  document.getElementById('sched-watch-end-hour').value = s.watch_end_hour ?? 8;
+  document.getElementById('sched-watch-end-minute').value = s.watch_end_minute ?? 0;
+  document.getElementById('sched-watch-interval').value = s.poll_watch_interval_seconds ?? 60;
   document.getElementById('sched-recipient-type').value = s.recipient_type;
   updateScheduleActionFields();
 
@@ -684,15 +696,22 @@ function closeScheduleModal() {
 
 function updateScheduleActionFields() {
   const actionType = document.getElementById('sched-action-type').value;
-  const isPollAction = actionType === 'vote_poll';
+  const isPollAction = actionType === 'vote_poll' || actionType === 'watch_poll';
+  const isWatchAction = actionType === 'watch_poll';
   const messageGroup = document.getElementById('sched-message-group');
   const pollFields = document.getElementById('sched-poll-fields');
+  const watchEndHourGroup = document.getElementById('sched-watch-end-hour-group');
+  const watchEndMinuteGroup = document.getElementById('sched-watch-end-minute-group');
+  const watchIntervalGroup = document.getElementById('sched-watch-interval-group');
   const messageInput = document.getElementById('sched-message');
   const pollOptionInput = document.getElementById('sched-poll-option');
   const recipientType = document.getElementById('sched-recipient-type');
 
   if (messageGroup) messageGroup.classList.toggle('hidden', isPollAction);
   if (pollFields) pollFields.classList.toggle('hidden', !isPollAction);
+  if (watchEndHourGroup) watchEndHourGroup.classList.toggle('hidden', !isWatchAction);
+  if (watchEndMinuteGroup) watchEndMinuteGroup.classList.toggle('hidden', !isWatchAction);
+  if (watchIntervalGroup) watchIntervalGroup.classList.toggle('hidden', !isWatchAction);
   if (messageInput) messageInput.required = !isPollAction;
   if (pollOptionInput) pollOptionInput.required = isPollAction;
   if (recipientType && isPollAction) {
@@ -711,6 +730,9 @@ async function handleScheduleSubmit(e) {
   const poll_option = document.getElementById('sched-poll-option').value.trim();
   const send_hour = parseInt(document.getElementById('sched-hour').value);
   const send_minute = parseInt(document.getElementById('sched-minute').value);
+  const watch_end_hour = parseInt(document.getElementById('sched-watch-end-hour').value);
+  const watch_end_minute = parseInt(document.getElementById('sched-watch-end-minute').value);
+  const poll_watch_interval_seconds = parseInt(document.getElementById('sched-watch-interval').value);
   const recipient_type = document.getElementById('sched-recipient-type').value;
   const recipient_id = schedRecipientManualMode
     ? document.getElementById('sched-recipient-id-manual').value.trim()
@@ -722,9 +744,21 @@ async function handleScheduleSubmit(e) {
     showToast('Vui lòng chọn hoặc nhập ID người nhận!', 'error');
     return;
   }
-  if (action_type === 'vote_poll' && !poll_option) {
+  if ((action_type === 'vote_poll' || action_type === 'watch_poll') && !poll_option) {
     showToast('Vui lòng nhập lựa chọn cần bình chọn!', 'error');
     return;
+  }
+  if (action_type === 'watch_poll') {
+    const startMinutes = send_hour * 60 + send_minute;
+    const endMinutes = watch_end_hour * 60 + watch_end_minute;
+    if (endMinutes <= startMinutes) {
+      showToast('Giờ kết thúc canh poll phải sau giờ bắt đầu!', 'error');
+      return;
+    }
+    if (!Number.isFinite(poll_watch_interval_seconds) || poll_watch_interval_seconds < 15) {
+      showToast('Chu kỳ quét phải từ 15 giây trở lên!', 'error');
+      return;
+    }
   }
 
   const selectedDays = [];
@@ -745,6 +779,9 @@ async function handleScheduleSubmit(e) {
     poll_id,
     poll_question_filter,
     poll_option,
+    watch_end_hour,
+    watch_end_minute,
+    poll_watch_interval_seconds,
     send_hour,
     send_minute,
     send_days,
@@ -1049,9 +1086,10 @@ async function fetchAdminSchedules() {
 
       tbody.innerHTML = schedules.map(s => {
         const daysArr = s.send_days.split(',');
-        const isPollAction = (s.action_type || 'send_message') === 'vote_poll';
+        const actionType = s.action_type || 'send_message';
+        const isPollAction = actionType === 'vote_poll' || actionType === 'watch_poll';
         const scheduleContent = isPollAction
-          ? `Bình chọn: ${s.poll_option || ''}${s.poll_question_filter ? ` | ${s.poll_question_filter}` : ''}${s.poll_id ? ` | Poll ID: ${s.poll_id}` : ''}`
+          ? `${actionType === 'watch_poll' ? 'Canh' : 'Bình chọn'}: ${s.poll_option || ''}${s.poll_question_filter ? ` | ${s.poll_question_filter}` : ''}${s.poll_id ? ` | Poll ID: ${s.poll_id}` : ''}${actionType === 'watch_poll' ? ` | Đến ${String(s.watch_end_hour ?? 8).padStart(2, '0')}:${String(s.watch_end_minute ?? 0).padStart(2, '0')} | ${s.poll_watch_interval_seconds || 60}s` : ''}`
           : s.message_content;
         const daysLabel = daysArr.map(d => {
           const map = { mon: 'T2', tue: 'T3', wed: 'T4', thu: 'T5', fri: 'T6', sat: 'T7', sun: 'CN' };
@@ -1064,7 +1102,7 @@ async function fetchAdminSchedules() {
             <td><strong style="color:var(--cyan)">${escapeHtml(s.username)}</strong></td>
             <td><strong>${String(s.send_hour).padStart(2, '0')}:${String(s.send_minute).padStart(2, '0')}</strong></td>
             <td><span class="schedule-days-badge">${daysLabel}</span></td>
-            <td><code>${s.recipient_id}</code> (${isPollAction ? 'POLL' : s.recipient_type})</td>
+            <td><code>${s.recipient_id}</code> (${actionType === 'watch_poll' ? 'WATCH' : isPollAction ? 'POLL' : s.recipient_type})</td>
             <td>${escapeHtml(scheduleContent)}</td>
             <td><span class="status-badge ${s.is_active === 1 ? 'status-success' : 'status-error'}">${s.is_active === 1 ? 'Hoạt động' : 'Tắt'}</span></td>
           </tr>

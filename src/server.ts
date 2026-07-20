@@ -257,6 +257,9 @@ app.post('/api/schedules', authenticateToken, (req: AuthenticatedRequest, res: R
     poll_id,
     poll_question_filter,
     poll_option,
+    watch_end_hour,
+    watch_end_minute,
+    poll_watch_interval_seconds,
     send_hour,
     send_minute,
     send_days,
@@ -265,7 +268,7 @@ app.post('/api/schedules', authenticateToken, (req: AuthenticatedRequest, res: R
     recipient_type,
     recipient_id
   } = req.body;
-  const cleanActionType = action_type === 'vote_poll' ? 'vote_poll' : 'send_message';
+  const cleanActionType = action_type === 'vote_poll' || action_type === 'watch_poll' ? action_type : 'send_message';
 
   if (send_hour === undefined || send_minute === undefined || !send_days || !recipient_id) {
     return res.status(400).json({ success: false, message: 'Missing required schedule fields' });
@@ -273,17 +276,28 @@ app.post('/api/schedules', authenticateToken, (req: AuthenticatedRequest, res: R
   if (cleanActionType === 'send_message' && !message_content) {
     return res.status(400).json({ success: false, message: 'Message content is required' });
   }
-  if (cleanActionType === 'vote_poll' && !poll_option) {
+  if ((cleanActionType === 'vote_poll' || cleanActionType === 'watch_poll') && !poll_option) {
     return res.status(400).json({ success: false, message: 'Poll option is required' });
+  }
+  if (cleanActionType === 'watch_poll') {
+    const startMinutes = Number(send_hour) * 60 + Number(send_minute);
+    const endMinutes = Number(watch_end_hour ?? 8) * 60 + Number(watch_end_minute ?? 0);
+    if (endMinutes <= startMinutes) {
+      return res.status(400).json({ success: false, message: 'Watch end time must be after start time' });
+    }
+    if (poll_watch_interval_seconds !== undefined && Number(poll_watch_interval_seconds) < 15) {
+      return res.status(400).json({ success: false, message: 'Poll watch interval must be at least 15 seconds' });
+    }
   }
 
   try {
     const result = db.prepare(`
       INSERT INTO schedules (
         user_id, message_content, action_type, poll_id, poll_question_filter, poll_option,
+        watch_end_hour, watch_end_minute, poll_watch_interval_seconds,
         send_hour, send_minute, send_days, start_date, end_date, recipient_type, recipient_id, is_active
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
     `).run(
       userId,
       message_content || '',
@@ -291,6 +305,9 @@ app.post('/api/schedules', authenticateToken, (req: AuthenticatedRequest, res: R
       poll_id ? String(poll_id).trim() : null,
       poll_question_filter ? String(poll_question_filter).trim() : null,
       poll_option ? String(poll_option).trim() : null,
+      watch_end_hour !== undefined ? Number(watch_end_hour) : 8,
+      watch_end_minute !== undefined ? Number(watch_end_minute) : 0,
+      poll_watch_interval_seconds !== undefined ? Math.max(15, Number(poll_watch_interval_seconds) || 60) : 60,
       send_hour,
       send_minute,
       send_days,
@@ -321,6 +338,9 @@ app.put('/api/schedules/:id', authenticateToken, (req: AuthenticatedRequest, res
     poll_id,
     poll_question_filter,
     poll_option,
+    watch_end_hour,
+    watch_end_minute,
+    poll_watch_interval_seconds,
     send_hour,
     send_minute,
     send_days,
@@ -330,7 +350,7 @@ app.put('/api/schedules/:id', authenticateToken, (req: AuthenticatedRequest, res
     recipient_id,
     is_active
   } = req.body;
-  const cleanActionType = action_type === 'vote_poll' ? 'vote_poll' : action_type === 'send_message' ? 'send_message' : undefined;
+  const cleanActionType = ['vote_poll', 'watch_poll', 'send_message'].includes(action_type) ? action_type : undefined;
 
   try {
     // Check ownership
@@ -340,11 +360,23 @@ app.put('/api/schedules/:id', authenticateToken, (req: AuthenticatedRequest, res
     const nextPollOption = poll_option !== undefined ? String(poll_option).trim() : schedule.poll_option;
     const nextMessageContent = message_content !== undefined ? message_content : schedule.message_content;
 
-    if (nextActionType === 'vote_poll' && !nextPollOption && is_active === undefined) {
+    if ((nextActionType === 'vote_poll' || nextActionType === 'watch_poll') && !nextPollOption && is_active === undefined) {
       return res.status(400).json({ success: false, message: 'Poll option is required' });
     }
     if (nextActionType === 'send_message' && !nextMessageContent && is_active === undefined) {
       return res.status(400).json({ success: false, message: 'Message content is required' });
+    }
+    if (nextActionType === 'watch_poll' && is_active === undefined) {
+      const nextStartHour = send_hour !== undefined ? Number(send_hour) : Number(schedule.send_hour);
+      const nextStartMinute = send_minute !== undefined ? Number(send_minute) : Number(schedule.send_minute);
+      const nextEndHour = watch_end_hour !== undefined ? Number(watch_end_hour) : Number(schedule.watch_end_hour ?? 8);
+      const nextEndMinute = watch_end_minute !== undefined ? Number(watch_end_minute) : Number(schedule.watch_end_minute ?? 0);
+      if ((nextEndHour * 60 + nextEndMinute) <= (nextStartHour * 60 + nextStartMinute)) {
+        return res.status(400).json({ success: false, message: 'Watch end time must be after start time' });
+      }
+      if (poll_watch_interval_seconds !== undefined && Number(poll_watch_interval_seconds) < 15) {
+        return res.status(400).json({ success: false, message: 'Poll watch interval must be at least 15 seconds' });
+      }
     }
 
     db.prepare(`
@@ -354,6 +386,9 @@ app.put('/api/schedules/:id', authenticateToken, (req: AuthenticatedRequest, res
           poll_id = ?,
           poll_question_filter = ?,
           poll_option = ?,
+          watch_end_hour = COALESCE(?, watch_end_hour),
+          watch_end_minute = COALESCE(?, watch_end_minute),
+          poll_watch_interval_seconds = COALESCE(?, poll_watch_interval_seconds),
           send_hour = COALESCE(?, send_hour),
           send_minute = COALESCE(?, send_minute),
           send_days = COALESCE(?, send_days),
@@ -369,11 +404,14 @@ app.put('/api/schedules/:id', authenticateToken, (req: AuthenticatedRequest, res
       poll_id !== undefined ? (poll_id ? String(poll_id).trim() : null) : schedule.poll_id,
       poll_question_filter !== undefined ? (poll_question_filter ? String(poll_question_filter).trim() : null) : schedule.poll_question_filter,
       poll_option !== undefined ? (poll_option ? String(poll_option).trim() : null) : schedule.poll_option,
+      watch_end_hour !== undefined ? Number(watch_end_hour) : undefined,
+      watch_end_minute !== undefined ? Number(watch_end_minute) : undefined,
+      poll_watch_interval_seconds !== undefined ? Math.max(15, Number(poll_watch_interval_seconds) || 60) : undefined,
       send_hour,
       send_minute,
       send_days,
-      start_date || null,
-      end_date || null,
+      start_date !== undefined ? (start_date || null) : schedule.start_date,
+      end_date !== undefined ? (end_date || null) : schedule.end_date,
       recipient_type,
       recipient_id,
       is_active,
@@ -442,7 +480,13 @@ app.post('/api/zalo/test-poll-vote', authenticateToken, async (req: Authenticate
   try {
     const historyMessage = `Test vote poll "${pollOption}"${questionFilter ? ` (${questionFilter})` : ''}`;
     SchedulerService.log(userId, 'INFO', `Triggered manual poll vote in group '${groupId}' with option '${pollOption}'`);
-    await ZaloService.votePollAttendance(userId, groupId, pollOption, pollId, questionFilter);
+    const voteResult = await ZaloService.votePollAttendance(userId, groupId, pollOption, pollId, questionFilter);
+    if (voteResult?.skipped === true) {
+      SchedulerService.log(userId, 'INFO', `✅ Manual poll vote skipped: option '${pollOption}' was already selected in group '${groupId}'`);
+      SchedulerService.addHistory(userId, 0, 'success', `${historyMessage} (already voted)`, groupId);
+      return res.json({ success: true, skipped: true, message: 'Poll already voted with the selected option.' });
+    }
+
     SchedulerService.log(userId, 'INFO', `✅ Manual poll vote success in group '${groupId}'`);
     SchedulerService.addHistory(userId, 0, 'success', historyMessage, groupId);
     return res.json({ success: true, message: 'Poll voted successfully!' });

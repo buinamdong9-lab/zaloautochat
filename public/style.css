@@ -2,7 +2,7 @@
  * -----------------------------------------------------------------------------
  * ZALO AUTO MESSENGER - PREMIUM NEO-BRUTALISM STYLESHEET
  * -----------------------------------------------------------------------------
- * @version 2.5.0
+ * @version 3.0.0
  * @author Dong Bui
  * @copyright (c) 2026 Dong Bui. All rights reserved.
  * @contact Hotline/Zalo: 0779356619 | Email: buinamdong9@gmail.com
@@ -553,6 +553,56 @@ body {
   color: var(--text-secondary);
   line-height: 1.5;
   font-weight: 500;
+}
+
+.upgrade-card {
+  padding: 18px 20px;
+  background: #ffffff;
+  border-color: var(--panel-border);
+}
+.upgrade-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.upgrade-card-header h3 {
+  font-size: 18px;
+  font-weight: 900;
+  margin-top: 6px;
+}
+.upgrade-version-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 3px 8px;
+  border: 2px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--secondary-color);
+  box-shadow: var(--btn-shadow-sm);
+  font-size: 11px;
+  font-weight: 900;
+}
+.upgrade-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+.upgrade-features span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 2px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--bg-color);
+  font-size: 12px;
+  font-weight: 800;
+}
+.upgrade-features i {
+  color: var(--primary-color);
 }
 
 .instructions-grid {

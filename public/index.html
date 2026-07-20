@@ -54,7 +54,7 @@
       <div class="auth-card-footer" style="margin-top: 24px; padding-top: 16px; border-top: 2px dashed rgba(15, 15, 27, 0.15); text-align: center; font-size: 11px; color: var(--text-muted); line-height: 1.6;">
         <p>© 2026 Bản quyền thuộc về <strong>Đông Bùi</strong>. All Rights Reserved.</p>
         <p style="margin-top: 4px; display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap;">
-          <span>Zalo Auto v2.5.0</span>
+          <span>Zalo Auto v3.0.0</span>
           <span style="background: #d1fae5; color: #065f46; padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 9px; border: 1px solid var(--panel-border); text-transform: uppercase;">SSL SECURE</span>
           <span style="background: #e0f2fe; color: #0369a1; padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 9px; border: 1px solid var(--panel-border); text-transform: uppercase;">AES-256</span>
           <span style="background: #fef3c7; color: #92400e; padding: 1px 5px; border-radius: 4px; font-weight: 700; font-size: 9px; border: 1px solid var(--panel-border); text-transform: uppercase;">ISO 27001</span>
@@ -105,7 +105,7 @@
         </a>
         <div class="copyright-info" style="font-size: 11px; color: var(--text-muted); text-align: center; line-height: 1.5; font-weight: 500;">
           <p>© 2026 Bản quyền thuộc về <strong>Đông Bùi</strong></p>
-          <p>Version 2.5.0</p>
+          <p>Version 3.0.0</p>
           <div style="display: flex; gap: 4px; justify-content: center; margin-top: 6px; flex-wrap: wrap;">
             <span style="background: #d1fae5; color: #065f46; padding: 1px 4px; border-radius: 4px; font-weight: 700; font-size: 8px; border: 1px solid var(--panel-border);">SSL SECURE</span>
             <span style="background: #e0f2fe; color: #0369a1; padding: 1px 4px; border-radius: 4px; font-weight: 700; font-size: 8px; border: 1px solid var(--panel-border);">AES-256</span>
@@ -177,6 +177,23 @@
               <button class="btn btn-primary" onclick="switchTab('config')">
                 <i class="fa-solid fa-key"></i> Thiết lập Zalo
               </button>
+            </div>
+          </div>
+
+          <div class="upgrade-card glass">
+            <div class="upgrade-card-header">
+              <div>
+                <span class="upgrade-version-badge">v3.0.0</span>
+                <h3>Nâng cấp điểm danh bằng bình chọn</h3>
+              </div>
+              <span class="status-badge status-success">Production Ready</span>
+            </div>
+            <div class="upgrade-features">
+              <span><i class="fa-solid fa-square-poll-vertical"></i> Vote poll tự động</span>
+              <span><i class="fa-solid fa-clock"></i> Canh poll theo khung giờ</span>
+              <span><i class="fa-solid fa-shield-halved"></i> Chống vote lặp</span>
+              <span><i class="fa-solid fa-spell-check"></i> Nhận diện An toàn / AT / typo nhẹ</span>
+              <span><i class="fa-solid fa-file-lines"></i> Ghi log hệ thống ra file</span>
             </div>
           </div>
           
@@ -524,6 +541,7 @@
           <select id="sched-action-type">
             <option value="send_message">Gửi tin nhắn</option>
             <option value="vote_poll">Tham gia bình chọn</option>
+            <option value="watch_poll">Canh bình chọn trong khung giờ</option>
           </select>
         </div>
         
@@ -559,6 +577,19 @@
         <div class="form-group span-2">
           <label for="sched-minute"><i class="fa-solid fa-clock"></i> Phút gửi</label>
           <input type="number" id="sched-minute" min="0" max="59" value="0" required>
+        </div>
+        <div class="form-group span-2 hidden" id="sched-watch-end-hour-group">
+          <label for="sched-watch-end-hour"><i class="fa-solid fa-hourglass-end"></i> Giờ kết thúc</label>
+          <input type="number" id="sched-watch-end-hour" min="0" max="23" value="8">
+        </div>
+        <div class="form-group span-2 hidden" id="sched-watch-end-minute-group">
+          <label for="sched-watch-end-minute"><i class="fa-solid fa-hourglass-end"></i> Phút kết thúc</label>
+          <input type="number" id="sched-watch-end-minute" min="0" max="59" value="0">
+        </div>
+        <div class="form-group span-2 hidden" id="sched-watch-interval-group">
+          <label for="sched-watch-interval"><i class="fa-solid fa-rotate"></i> Chu kỳ quét</label>
+          <input type="number" id="sched-watch-interval" min="15" max="600" value="60">
+          <span class="input-help">Đơn vị giây.</span>
         </div>
         
         <div class="form-group span-8">

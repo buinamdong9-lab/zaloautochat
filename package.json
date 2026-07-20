@@ -1,6 +1,6 @@
 {
   "name": "zalo-auto-messenger",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Multi-user Zalo Auto Messenger in Node.js/TypeScript with C native performance optimization",
   "main": "dist/server.js",
   "scripts": {

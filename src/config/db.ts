@@ -70,16 +70,34 @@ try {
 } catch (e) {
   // Column already exists, ignore
 }
+try {
+  db.exec('ALTER TABLE schedules ADD COLUMN watch_end_hour INTEGER DEFAULT 8');
+} catch (e) {
+  // Column already exists, ignore
+}
+try {
+  db.exec('ALTER TABLE schedules ADD COLUMN watch_end_minute INTEGER DEFAULT 0');
+} catch (e) {
+  // Column already exists, ignore
+}
+try {
+  db.exec('ALTER TABLE schedules ADD COLUMN poll_watch_interval_seconds INTEGER DEFAULT 60');
+} catch (e) {
+  // Column already exists, ignore
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS schedules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     message_content TEXT NOT NULL,
-    action_type TEXT DEFAULT 'send_message', -- 'send_message' or 'vote_poll'
+    action_type TEXT DEFAULT 'send_message', -- 'send_message', 'vote_poll', or 'watch_poll'
     poll_id TEXT,
     poll_question_filter TEXT,
     poll_option TEXT,
+    watch_end_hour INTEGER DEFAULT 8,
+    watch_end_minute INTEGER DEFAULT 0,
+    poll_watch_interval_seconds INTEGER DEFAULT 60,
     send_hour INTEGER NOT NULL,
     send_minute INTEGER NOT NULL,
     send_days TEXT NOT NULL, -- e.g., 'mon,tue,wed,thu,fri'
@@ -118,6 +136,19 @@ db.exec(`
     url TEXT UNIQUE NOT NULL,
     is_active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS poll_watch_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    schedule_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    poll_id TEXT NOT NULL,
+    processed_at TEXT NOT NULL,
+    status TEXT NOT NULL,
+    message TEXT,
+    UNIQUE(schedule_id, poll_id),
+    FOREIGN KEY(schedule_id) REFERENCES schedules(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
 

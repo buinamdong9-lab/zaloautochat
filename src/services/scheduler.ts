@@ -10,6 +10,7 @@ const { SocksProxyAgent } = require('socks-proxy-agent');
 export class SchedulerService {
   // Map of scheduleId -> cron task
   private static activeJobs: Map<number, cron.ScheduledTask> = new Map();
+  private static activePollWatchers: Map<number, { interval: NodeJS.Timeout; timeout: NodeJS.Timeout }> = new Map();
   private static logDir = path.resolve(__dirname, '../../data');
   private static systemLogPath = path.join(SchedulerService.logDir, 'system.log');
 
@@ -114,6 +115,9 @@ export class SchedulerService {
       poll_id,
       poll_question_filter,
       poll_option,
+      watch_end_hour,
+      watch_end_minute,
+      poll_watch_interval_seconds,
       send_hour,
       send_minute,
       send_days,
@@ -158,10 +162,16 @@ export class SchedulerService {
 
         this.log(user_id, 'INFO', `Triggered scheduler job ${id} for recipient ${recipient_id}`);
         try {
-          if ((action_type || 'send_message') === 'vote_poll') {
-            await ZaloService.votePollAttendance(user_id, recipient_id, poll_option, poll_id, poll_question_filter);
+          if ((action_type || 'send_message') === 'watch_poll') {
+            this.startPollWatcher(schedule);
+          } else if ((action_type || 'send_message') === 'vote_poll') {
+            const voteResult = await ZaloService.votePollAttendance(user_id, recipient_id, poll_option, poll_id, poll_question_filter);
             const detail = `Vote poll "${poll_option}"${poll_question_filter ? ` (${poll_question_filter})` : ''}`;
-            this.log(user_id, 'INFO', `✅ Successfully voted poll for schedule ${id}`);
+            if (voteResult?.skipped === true) {
+              this.log(user_id, 'INFO', `✅ Poll already voted with "${poll_option}" for schedule ${id}; skipped duplicate vote.`);
+            } else {
+              this.log(user_id, 'INFO', `✅ Successfully voted poll for schedule ${id}`);
+            }
             this.addHistory(user_id, id, 'success', detail, recipient_id);
           } else {
             await ZaloService.sendMessage(user_id, recipient_id, recipient_type, message_content);
@@ -170,8 +180,9 @@ export class SchedulerService {
           }
         } catch (err) {
           const errMsg = (err as Error).message;
-          const actionLabel = (action_type || 'send_message') === 'vote_poll' ? 'vote poll' : 'send message';
-          const historyMessage = (action_type || 'send_message') === 'vote_poll'
+          const isPollAction = ['vote_poll', 'watch_poll'].includes(action_type || 'send_message');
+          const actionLabel = isPollAction ? 'vote poll' : 'send message';
+          const historyMessage = isPollAction
             ? `Vote poll "${poll_option || ''}"`
             : message_content;
           this.log(user_id, 'ERROR', `❌ Failed to ${actionLabel} for schedule ${id}: ${errMsg}`);
@@ -187,10 +198,100 @@ export class SchedulerService {
     this.activeJobs.set(id, task);
   }
 
+  private static startPollWatcher(schedule: any) {
+    const {
+      id,
+      user_id,
+      recipient_id,
+      poll_question_filter,
+      poll_option,
+      watch_end_hour,
+      watch_end_minute,
+      poll_watch_interval_seconds
+    } = schedule;
+
+    this.stopPollWatcher(id);
+
+    const now = new Date();
+    const endHour = Number.isFinite(Number(watch_end_hour)) ? Number(watch_end_hour) : 8;
+    const endMinute = Number.isFinite(Number(watch_end_minute)) ? Number(watch_end_minute) : 0;
+    const endAt = new Date(now);
+    endAt.setHours(
+      endHour,
+      endMinute,
+      0,
+      0
+    );
+
+    if (endAt <= now) {
+      this.log(user_id, 'WARNING', `Poll watcher ${id} skipped because end time has already passed.`);
+      return;
+    }
+
+    const intervalSeconds = Math.max(15, Number(poll_watch_interval_seconds) || 60);
+    this.log(user_id, 'INFO', `Started poll watcher ${id} for group ${recipient_id} until ${String(endAt.getHours()).padStart(2, '0')}:${String(endAt.getMinutes()).padStart(2, '0')} every ${intervalSeconds}s.`);
+
+    const tick = async () => {
+      await this.processPollWatcherTick(schedule);
+    };
+
+    tick().catch(err => {
+      this.log(user_id, 'ERROR', `Poll watcher ${id} tick failed: ${(err as Error).message}`);
+    });
+
+    const interval = setInterval(() => {
+      tick().catch(err => {
+        this.log(user_id, 'ERROR', `Poll watcher ${id} tick failed: ${(err as Error).message}`);
+      });
+    }, intervalSeconds * 1000);
+
+    const timeout = setTimeout(() => {
+      this.stopPollWatcher(id);
+      this.log(user_id, 'INFO', `Stopped poll watcher ${id}: watch window ended.`);
+    }, endAt.getTime() - now.getTime());
+
+    this.activePollWatchers.set(id, { interval, timeout });
+  }
+
+  private static async processPollWatcherTick(schedule: any) {
+    const { id, user_id, recipient_id, poll_question_filter, poll_option } = schedule;
+    const poll = await ZaloService.getLatestOpenPoll(user_id, recipient_id, poll_question_filter);
+    if (!poll?.poll_id) return;
+
+    const pollId = String(poll.poll_id);
+    const existing = db.prepare('SELECT id FROM poll_watch_history WHERE schedule_id = ? AND poll_id = ?')
+      .get(id, pollId) as any;
+    if (existing) return;
+
+    const voteResult = await ZaloService.votePollAttendance(user_id, recipient_id, poll_option, pollId, poll_question_filter);
+    const status = voteResult?.skipped === true ? 'skipped' : 'success';
+    const message = voteResult?.skipped === true
+      ? `Poll ${pollId} already voted with "${poll_option}"; marked as processed.`
+      : `Voted poll ${pollId} with "${poll_option}".`;
+
+    db.prepare(`
+      INSERT OR IGNORE INTO poll_watch_history (schedule_id, user_id, poll_id, processed_at, status, message)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(id, user_id, pollId, this.getTimestamp(), status, message);
+
+    this.log(user_id, 'INFO', `✅ Poll watcher ${id}: ${message}`);
+    this.addHistory(user_id, id, 'success', `Watch poll "${poll_option}" (${pollId})`, recipient_id);
+  }
+
+  private static stopPollWatcher(scheduleId: number) {
+    const watcher = this.activePollWatchers.get(scheduleId);
+    if (!watcher) return;
+
+    clearInterval(watcher.interval);
+    clearTimeout(watcher.timeout);
+    this.activePollWatchers.delete(scheduleId);
+  }
+
   /**
    * Stop and delete a scheduled job
    */
   public static stopJob(scheduleId: number): boolean {
+    this.stopPollWatcher(scheduleId);
     if (this.activeJobs.has(scheduleId)) {
       const task = this.activeJobs.get(scheduleId)!;
       task.stop();
@@ -218,6 +319,9 @@ export class SchedulerService {
   public static stopAll() {
     for (const [id, task] of this.activeJobs.entries()) {
       task.stop();
+    }
+    for (const id of this.activePollWatchers.keys()) {
+      this.stopPollWatcher(id);
     }
     this.activeJobs.clear();
     console.log('⏰ Stopped all active scheduler jobs.');
