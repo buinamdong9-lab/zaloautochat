@@ -255,11 +255,12 @@ export class SchedulerService {
   private static async processPollWatcherTick(schedule: any) {
     const { id, user_id, recipient_id, poll_question_filter, poll_option } = schedule;
 
-    this.log(user_id, 'INFO', `Poll watcher ${id} tick: checking for new polls in group ${recipient_id}...`);
+    console.log(`[PollWatcher] Job ${id} tick: checking for new polls in group ${recipient_id}...`);
 
     const poll = await ZaloService.getLatestOpenPoll(user_id, recipient_id, poll_question_filter);
     if (!poll?.poll_id) {
-      this.log(user_id, 'INFO', `Poll watcher ${id}: no open poll found in group ${recipient_id}. Will retry next interval.`);
+      // Only console.log to avoid flooding the DB logs table (~2880 entries/day at 30s interval)
+      console.log(`[PollWatcher] Job ${id}: no open poll found in group ${recipient_id}. Will retry next interval.`);
       return;
     }
 
@@ -267,7 +268,7 @@ export class SchedulerService {
     const existing = db.prepare('SELECT id FROM poll_watch_history WHERE schedule_id = ? AND poll_id = ?')
       .get(id, pollId) as any;
     if (existing) {
-      this.log(user_id, 'INFO', `Poll watcher ${id}: poll ${pollId} already processed. Skipping.`);
+      console.log(`[PollWatcher] Job ${id}: poll ${pollId} already processed. Skipping.`);
       return;
     }
 
@@ -330,10 +331,13 @@ export class SchedulerService {
     for (const [id, task] of this.activeJobs.entries()) {
       task.stop();
     }
-    for (const id of this.activePollWatchers.keys()) {
+    // Convert to array first to avoid modifying Map while iterating
+    const watcherIds = Array.from(this.activePollWatchers.keys());
+    for (const id of watcherIds) {
       this.stopPollWatcher(id);
     }
     this.activeJobs.clear();
+    this.activePollWatchers.clear();
     console.log('⏰ Stopped all active scheduler jobs.');
   }
 
