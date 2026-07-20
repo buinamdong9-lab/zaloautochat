@@ -196,6 +196,36 @@ export class SchedulerService {
     );
 
     this.activeJobs.set(id, task);
+
+    // Auto-start watcher if current time falls within the active window today
+    if (action_type === 'watch_poll') {
+      const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      const startHour = Number(send_hour);
+      const startMinute = Number(send_minute);
+      const endHour = Number.isFinite(Number(watch_end_hour)) ? Number(watch_end_hour) : 8;
+      const endMinute = Number.isFinite(Number(watch_end_minute)) ? Number(watch_end_minute) : 0;
+
+      const currentMinutes = nowVN.getHours() * 60 + nowVN.getMinutes();
+      const startMinutes = startHour * 60 + startMinute;
+      const endMinutes = endHour * 60 + endMinute;
+
+      const dayMap: Record<number, string> = {
+        0: 'sun', 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat'
+      };
+      const todayDayName = dayMap[nowVN.getDay()];
+      const isTodayActive = !send_days || send_days.split(',').map((d: string) => d.trim().toLowerCase()).includes(todayDayName);
+
+      const todayStr = nowVN.toLocaleDateString('sv-SE'); // YYYY-MM-DD
+      const isAfterStart = !start_date || todayStr >= start_date;
+      const isBeforeEnd = !end_date || todayStr <= end_date;
+
+      if (isTodayActive && isAfterStart && isBeforeEnd) {
+        if (currentMinutes >= startMinutes && currentMinutes < endMinutes) {
+          this.log(user_id, 'INFO', `[Auto-Start] Current time (${String(nowVN.getHours()).padStart(2, '0')}:${String(nowVN.getMinutes()).padStart(2, '0')}) is within watch window (${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')} - ${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}). Activating poll watcher immediately.`);
+          this.startPollWatcher(schedule);
+        }
+      }
+    }
   }
 
   private static startPollWatcher(schedule: any) {

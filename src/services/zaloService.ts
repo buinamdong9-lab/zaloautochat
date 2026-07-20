@@ -220,36 +220,72 @@ export class ZaloService {
     pollId?: string | number | null,
     questionFilter?: string | null
   ): Promise<any> {
-    const api = await this.getClient(userId);
-    const pollApi = api as any;
+    const runVote = async (client: any) => {
+      const pollApi = client as any;
+      if (typeof pollApi.votePoll !== 'function') {
+        throw new Error('Current zca-js client does not expose votePoll().');
+      }
 
-    if (typeof pollApi.votePoll !== 'function') {
-      throw new Error('Current zca-js client does not expose votePoll().');
+      const pollIdNumber = await this.resolvePollId(pollApi, groupId, pollId, questionFilter);
+      if (!pollIdNumber) {
+        throw new Error(`No open group poll was found in group ${groupId}.`);
+      }
+      const pollDetail = await this.getPollDetailForVote(pollApi, pollIdNumber);
+
+      if (pollDetail?.closed) {
+        throw new Error(`Poll ${pollIdNumber} is already closed.`);
+      }
+
+      const optionIds = this.resolvePollOptionIds(pollDetail, pollOption);
+      if (this.isPollAlreadyVoted(pollDetail, optionIds)) {
+        console.log(`Poll ${pollIdNumber} already has selected option(s) ${optionIds.join(', ')} for user ${userId}. Skipping vote.`);
+        return {
+          skipped: true,
+          reason: 'already_voted',
+          pollId: pollIdNumber,
+          optionIds
+        };
+      }
+
+      console.log(`Voting poll ${pollIdNumber} with option(s) ${optionIds.join(', ')} for user ${userId}...`);
+      return await pollApi.votePoll(pollIdNumber, optionIds);
+    };
+
+    let api = await this.getClient(userId);
+    try {
+      return await runVote(api);
+    } catch (err) {
+      console.warn(`Initial vote poll failed for user ${userId}, retrying with fresh client: ${(err as Error).message}`);
+      try {
+        api = await this.getClient(userId, true);
+        return await runVote(api);
+      } catch (retryErr) {
+        console.error(`Retry vote poll failed for user ${userId}:`, retryErr);
+        const errMsg = (retryErr as Error).message || '';
+        const isProxyError = errMsg.includes('ECONNRESET') || 
+                             errMsg.includes('ETIMEDOUT') || 
+                             errMsg.includes('ECONNREFUSED') || 
+                             errMsg.includes('proxy') || 
+                             errMsg.includes('tunneling socket') || 
+                             errMsg.includes('socks');
+        
+        if (isProxyError) {
+          console.warn(`[Failover] Proxy error detected on vote poll: "${errMsg}". Attempting auto-failover...`);
+          const failoverSuccess = await this.handleProxyFailover(userId);
+          if (failoverSuccess) {
+            try {
+              console.log(`[Failover] Retrying vote poll with new proxy...`);
+              api = await this.getClient(userId, true);
+              return await runVote(api);
+            } catch (failoverVoteErr) {
+              console.error(`[Failover] Vote poll failed after proxy failover:`, failoverVoteErr);
+              throw new Error((failoverVoteErr as Error).message);
+            }
+          }
+        }
+        throw retryErr;
+      }
     }
-
-    const pollIdNumber = await this.resolvePollId(pollApi, groupId, pollId, questionFilter);
-    if (!pollIdNumber) {
-      throw new Error(`No open group poll was found in group ${groupId}.`);
-    }
-    const pollDetail = await this.getPollDetailForVote(pollApi, pollIdNumber);
-
-    if (pollDetail?.closed) {
-      throw new Error(`Poll ${pollIdNumber} is already closed.`);
-    }
-
-    const optionIds = this.resolvePollOptionIds(pollDetail, pollOption);
-    if (this.isPollAlreadyVoted(pollDetail, optionIds)) {
-      console.log(`Poll ${pollIdNumber} already has selected option(s) ${optionIds.join(', ')} for user ${userId}. Skipping vote.`);
-      return {
-        skipped: true,
-        reason: 'already_voted',
-        pollId: pollIdNumber,
-        optionIds
-      };
-    }
-
-    console.log(`Voting poll ${pollIdNumber} with option(s) ${optionIds.join(', ')} for user ${userId}...`);
-    return await pollApi.votePoll(pollIdNumber, optionIds);
   }
 
   public static async getLatestOpenPoll(
