@@ -257,11 +257,29 @@ export class ZaloService {
     groupId: string,
     questionFilter?: string | null
   ): Promise<any | null> {
-    const api = await this.getClient(userId);
-    const pollApi = api as any;
-    const pollId = await this.resolvePollId(pollApi, groupId, null, questionFilter, false);
-    if (!pollId) return null;
-    return await this.getPollDetailForVote(pollApi, pollId);
+    let api = await this.getClient(userId);
+    let pollApi = api as any;
+    try {
+      const pollId = await this.resolvePollId(pollApi, groupId, null, questionFilter, false);
+      if (!pollId) {
+        console.log(`[PollWatcher] No open poll found in group ${groupId} for user ${userId}`);
+        return null;
+      }
+      console.log(`[PollWatcher] Found open poll ${pollId} in group ${groupId} for user ${userId}`);
+      return await this.getPollDetailForVote(pollApi, pollId);
+    } catch (err) {
+      console.warn(`[PollWatcher] getLatestOpenPoll failed for user ${userId}, retrying with fresh client: ${(err as Error).message}`);
+      try {
+        api = await this.getClient(userId, true);
+        pollApi = api as any;
+        const pollId = await this.resolvePollId(pollApi, groupId, null, questionFilter, false);
+        if (!pollId) return null;
+        return await this.getPollDetailForVote(pollApi, pollId);
+      } catch (retryErr) {
+        console.error(`[PollWatcher] Retry also failed for user ${userId}: ${(retryErr as Error).message}`);
+        throw retryErr;
+      }
+    }
   }
 
   private static async resolvePollId(
@@ -287,13 +305,24 @@ export class ZaloService {
     const items = Array.isArray(boards?.items) ? boards.items : [];
     const normalizedFilter = questionFilter ? this.normalizePollText(questionFilter) : '';
 
-    const matchingPoll = items
+    console.log(`[PollResolve] getListBoard returned ${items.length} board items for group ${groupId}`);
+
+    // Filter by boardType === 3 (Poll) first, then extract data
+    // BoardType enum: Note=1, PinnedMessage=2, Poll=3
+    const pollItems = items
+      .filter((item: any) => item && (item.boardType === 3 || item.boardType === 'Poll'))
       .map((item: any) => item?.data)
-      .filter((poll: any) => poll && poll.poll_id && Array.isArray(poll.options))
+      .filter((poll: any) => poll && poll.poll_id);
+
+    console.log(`[PollResolve] Found ${pollItems.length} poll items after boardType filter`);
+
+    const matchingPoll = pollItems
       .filter((poll: any) => !poll.closed)
       .find((poll: any) => {
         if (!normalizedFilter) return true;
-        return this.normalizePollText(String(poll.question || '')).includes(normalizedFilter);
+        const question = this.normalizePollText(String(poll.question || ''));
+        console.log(`[PollResolve] Checking poll ${poll.poll_id}: "${poll.question}" (closed=${poll.closed})`);
+        return question.includes(normalizedFilter);
       });
 
     if (!matchingPoll) {
@@ -302,6 +331,7 @@ export class ZaloService {
       throw new Error(`No open group poll${suffix} was found in group ${groupId}.`);
     }
 
+    console.log(`[PollResolve] Matched poll: ${matchingPoll.poll_id} "${matchingPoll.question}"`);
     return Number(matchingPoll.poll_id);
   }
 

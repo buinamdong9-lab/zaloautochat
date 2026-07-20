@@ -212,24 +212,23 @@ export class SchedulerService {
 
     this.stopPollWatcher(id);
 
-    const now = new Date();
+    // Calculate current time and end time in Vietnam timezone
+    const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
     const endHour = Number.isFinite(Number(watch_end_hour)) ? Number(watch_end_hour) : 8;
     const endMinute = Number.isFinite(Number(watch_end_minute)) ? Number(watch_end_minute) : 0;
-    const endAt = new Date(now);
-    endAt.setHours(
-      endHour,
-      endMinute,
-      0,
-      0
-    );
+    const endAtVN = new Date(nowVN);
+    endAtVN.setHours(endHour, endMinute, 0, 0);
 
-    if (endAt <= now) {
-      this.log(user_id, 'WARNING', `Poll watcher ${id} skipped because end time has already passed.`);
+    if (endAtVN <= nowVN) {
+      this.log(user_id, 'WARNING', `Poll watcher ${id} skipped because end time (${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}) has already passed (now: ${String(nowVN.getHours()).padStart(2, '0')}:${String(nowVN.getMinutes()).padStart(2, '0')}).`);
       return;
     }
 
+    // Calculate remaining milliseconds until end time
+    const remainingMs = endAtVN.getTime() - nowVN.getTime();
+
     const intervalSeconds = Math.max(15, Number(poll_watch_interval_seconds) || 60);
-    this.log(user_id, 'INFO', `Started poll watcher ${id} for group ${recipient_id} until ${String(endAt.getHours()).padStart(2, '0')}:${String(endAt.getMinutes()).padStart(2, '0')} every ${intervalSeconds}s.`);
+    this.log(user_id, 'INFO', `Started poll watcher ${id} for group ${recipient_id} until ${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')} every ${intervalSeconds}s (${Math.round(remainingMs / 60000)} minutes remaining).`);
 
     const tick = async () => {
       await this.processPollWatcherTick(schedule);
@@ -248,20 +247,31 @@ export class SchedulerService {
     const timeout = setTimeout(() => {
       this.stopPollWatcher(id);
       this.log(user_id, 'INFO', `Stopped poll watcher ${id}: watch window ended.`);
-    }, endAt.getTime() - now.getTime());
+    }, remainingMs);
 
     this.activePollWatchers.set(id, { interval, timeout });
   }
 
   private static async processPollWatcherTick(schedule: any) {
     const { id, user_id, recipient_id, poll_question_filter, poll_option } = schedule;
+
+    this.log(user_id, 'INFO', `Poll watcher ${id} tick: checking for new polls in group ${recipient_id}...`);
+
     const poll = await ZaloService.getLatestOpenPoll(user_id, recipient_id, poll_question_filter);
-    if (!poll?.poll_id) return;
+    if (!poll?.poll_id) {
+      this.log(user_id, 'INFO', `Poll watcher ${id}: no open poll found in group ${recipient_id}. Will retry next interval.`);
+      return;
+    }
 
     const pollId = String(poll.poll_id);
     const existing = db.prepare('SELECT id FROM poll_watch_history WHERE schedule_id = ? AND poll_id = ?')
       .get(id, pollId) as any;
-    if (existing) return;
+    if (existing) {
+      this.log(user_id, 'INFO', `Poll watcher ${id}: poll ${pollId} already processed. Skipping.`);
+      return;
+    }
+
+    this.log(user_id, 'INFO', `Poll watcher ${id}: new poll ${pollId} detected! Voting "${poll_option}"...`);
 
     const voteResult = await ZaloService.votePollAttendance(user_id, recipient_id, poll_option, pollId, poll_question_filter);
     const status = voteResult?.skipped === true ? 'skipped' : 'success';
